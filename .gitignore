@@ -1,0 +1,14 @@
+# Generated wire traces contain real tokens from your local IdP.
+# They are study output, not source. Regenerate them, don't commit them.
+trace.md
+
+# MCP server config. Holds a live API key in an Authorization header.
+# To share it, replace the literal key with ${EXCALIDRAW_API_KEY} and un-ignore.
+.mcp.json
+
+# Per-machine Claude Code state (enabled plugins, local permissions).
+.claude/settings.local.json
+
+bin/
+.env
+.DS_Store

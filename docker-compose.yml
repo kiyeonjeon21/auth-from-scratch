@@ -1,0 +1,24 @@
+# Local IdP for every chapter.
+#
+# The version is pinned deliberately. Feature flag names move between Keycloak
+# releases (`token-exchange` v1 vs `token-exchange-standard` v2), and `latest`
+# turns that into a silent breakage three chapters later.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    container_name: afs-keycloak
+    command:
+      - start-dev
+      - --import-realm
+      # Chapter 06. Standard RFC 8693 token exchange. Preview feature.
+      - --features=token-exchange-standard:v2,dpop:v1
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      # Realm as code. Never configure the demo realm by clicking in the admin
+      # console: export it back to this file or the next `make kc-reset` eats it.
+      - ./docker/keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
