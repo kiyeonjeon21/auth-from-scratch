@@ -10,15 +10,21 @@
 
 ## 그림부터
 
-코드를 돌리기 전에 이 두 장을 먼저 본다.
+코드를 돌리기 전에 이 세 장을 순서대로 본다.
 채널 분리는 본질적으로 공간적인 개념이라 글로 읽는 것보다 그림이 훨씬 빠르다.
 
-**[로그인 한 번에 무슨 일이 일어나나](https://app.excalidraw.com/s/AU3bkHPBsIE/VeJ6rXc0py)**
+**[1. 가장 쉬운 그림 - 로그인이란](https://app.excalidraw.com/s/AU3bkHPBsIE/4o7ZsmOJtq2)**
+프로토콜 용어가 하나도 없다. `가게` / `너` / `확인소` 셋만 나온다.
+가게가 비밀번호를 한 번도 못 본다는 것, 너를 지나간 건 교환권뿐이라는 것.
+이 두 가지만 가져가면 된다.
+
+**[2. 로그인 한 번에 무슨 일이 일어나나](https://app.excalidraw.com/s/AU3bkHPBsIE/VeJ6rXc0py)**
+1번과 **레이아웃이 완전히 같다.** 상자 글씨만 진짜 이름으로 바뀐다.
 레인이 `앱 | 브라우저 | Keycloak` 순서고 브라우저가 가운데다.
 프론트채널은 가운데를 거쳐 두 번 꺾여 가고, 백채널은 가운데를 건너뛴다.
 백채널 구간엔 브라우저 상자가 하나도 없다. 그게 핵심이다.
 
-**[PKCE - 가루와 원본](https://app.excalidraw.com/s/AU3bkHPBsIE/74Xaul0gvdJ)**
+**[3. PKCE - 가루와 원본](https://app.excalidraw.com/s/AU3bkHPBsIE/74Xaul0gvdJ)**
 빨간 막대 화살표 하나만 보면 된다.
 가루에서 원래 단어를 되돌릴 수 없다는 것, 그게 PKCE가 동작하는 이유 전부다.
 
