@@ -46,6 +46,27 @@ docker run --rm quay.io/keycloak/keycloak:<버전> build --help-all | grep -A2 '
 26.2 기준으로 `token-exchange`는 레거시(v1), 표준 방식은 `token-exchange-standard`(v2)다.
 이름이 헷갈리기 쉬우니 06에서 401/501이 뜨면 여기부터 본다.
 
+## HTTPS 강제 (`sslRequired`)
+
+realm의 `sslRequired` 기본값은 `external` 이다.
+사설 대역에서 온 요청만 HTTP를 허용하고 나머지는 403 `HTTPS required` 를 낸다.
+
+**Docker Desktop이 요청 출발지를 사설 대역 밖 주소로 넘기면 로컬에서도 막힌다.**
+실제로 겪었다. 컨테이너에 도착한 출발지가 `fdc4:f303:9324::254` 같은 IPv6 ULA였고,
+`localhost` 로 붙든 `127.0.0.1` 로 붙든 똑같이 403이었다.
+어느 날 갑자기 디스커버리부터 안 되면 이걸 먼저 의심한다.
+
+```bash
+curl -s http://localhost:8080/realms/demo/.well-known/openid-configuration
+# {"error":"invalid_request","error_description":"HTTPS required"}
+```
+
+`demo` realm은 `realm-demo.json` 의 `"sslRequired": "NONE"` 으로 끈다.
+`master` realm은 파일로 임포트하지 않으므로 `make kc-allow-http` 가 컨테이너 안에서 따로 끈다.
+`make kc-up` 이 이 단계를 자동으로 밟는다. 안 끄면 관리 콘솔도 같이 막힌다.
+
+로컬 랩 전용 설정이다. 실제 배포에서는 절대 끄지 않는다.
+
 ## 자주 걸리는 것
 
 **`redirect_uri` 불일치**

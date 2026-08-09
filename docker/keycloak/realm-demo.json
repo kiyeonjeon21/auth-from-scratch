@@ -3,6 +3,8 @@
   "enabled": true,
   "displayName": "auth-from-scratch demo",
 
+  "sslRequired": "NONE",
+
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,

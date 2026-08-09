@@ -1,6 +1,11 @@
 ISSUER ?= http://localhost:8080/realms/demo
+CLIENT_AUTH ?= client_secret_basic
 
-.PHONY: help kc-up kc-down kc-reset kc-logs kc-export discovery run-00 tidy check
+# Local fixture admin, same values as docker-compose.yml.
+KC_ADMIN ?= admin
+KC_ADMIN_PW ?= admin
+
+.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-00 run-02 diff-traces tidy check
 
 help: ## 사용 가능한 타깃
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -8,13 +13,26 @@ help: ## 사용 가능한 타깃
 
 kc-up: ## Keycloak 기동 후 디스커버리 응답까지 대기
 	docker compose up -d
-	@printf "waiting for %s" "$(ISSUER)"
+	@printf "waiting for keycloak"
 	@for i in $$(seq 1 60); do \
-		if curl -fsS "$(ISSUER)/.well-known/openid-configuration" >/dev/null 2>&1; then \
-			echo " ready"; exit 0; fi; \
+		code=$$(curl -s -o /dev/null -w '%{http_code}' "$(ISSUER)/.well-known/openid-configuration" 2>/dev/null); \
+		if [ "$$code" != "000" ]; then echo " up"; break; fi; \
 		printf "."; sleep 2; \
-	done; \
-	echo " timeout"; docker compose logs --tail=40 keycloak; exit 1
+	done
+	@$(MAKE) --no-print-directory kc-allow-http
+	@curl -fsS "$(ISSUER)/.well-known/openid-configuration" >/dev/null 2>&1 \
+		&& echo "discovery ready" \
+		|| { echo "discovery 실패"; docker compose logs --tail=40 keycloak; exit 1; }
+
+kc-allow-http: ## master realm의 HTTPS 강제를 끈다 (로컬 전용)
+	@# Docker Desktop이 요청 출발지를 사설 대역 밖 주소로 넘기면 Keycloak이
+	@# 'HTTPS required' 403을 낸다. demo realm은 realm-demo.json에서 끄지만
+	@# master는 파일로 임포트하지 않으므로 여기서 컨테이너 안에서 끈다.
+	@docker compose exec -T keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+		--server http://127.0.0.1:8080 --realm master \
+		--user "$(KC_ADMIN)" --password "$(KC_ADMIN_PW)" >/dev/null 2>&1 || true
+	@docker compose exec -T keycloak /opt/keycloak/bin/kcadm.sh \
+		update realms/master -s sslRequired=NONE >/dev/null 2>&1 || true
 
 kc-down: ## Keycloak 정지
 	docker compose down
@@ -36,6 +54,34 @@ discovery: ## 디스커버리 문서 출력
 
 run-00: ## 00-first-login-trace 실행
 	go run ./00-first-login-trace -issuer "$(ISSUER)"
+
+run-02: ## 02-authcode-pkce 실행 (00과 같은 포트라 동시에 못 띄운다)
+	go run ./02-authcode-pkce -issuer "$(ISSUER)" -client-auth "$(CLIENT_AUTH)"
+
+diff-traces: ## 00(라이브러리)과 02(손으로)의 실제 HTTP 왕복을 비교
+	@test -f 00-first-login-trace/trace.md || { echo "00 트레이스가 없다: make run-00"; exit 1; }
+	@test -f 02-authcode-pkce/trace.md     || { echo "02 트레이스가 없다: make run-02"; exit 1; }
+	@# 해설 블록은 각 챕터가 저자 마음대로 쓴 주석이라 비교 대상이 아니다.
+	@# 진짜 물어볼 것은 "네트워크로 오간 것이 무엇이 다른가" 하나뿐이다.
+	@echo "== 백채널 호출 수 =="
+	@for f in 00-first-login-trace 02-authcode-pkce; do \
+		printf "  %-22s %s번\n" "$$f" \
+			"$$(sed -n '/^## 한눈에 보기/,/^---/p' $$f/trace.md | grep -c 'back (서버 간)')"; \
+	done
+	@echo
+	@# exch: 트레이스에서 실제 HTTP 왕복(front/back)의 이름만 뽑아 정렬한다.
+	@exch() { \
+		sed -n '/^## 한눈에 보기/,/^---/p' "$$1/trace.md" \
+		| grep -E '^\| [0-9]+ .*\((서버 간|브라우저 경유)\)' \
+		| cut -d'|' -f5 | sed 's/^ *//;s/ *$$//' | sort -u; }; \
+	exch 00-first-login-trace > /tmp/afs-00.txt; \
+	exch 02-authcode-pkce     > /tmp/afs-02.txt; \
+	echo "== 00은 하는데 02는 안 하는 것 =="; \
+	comm -23 /tmp/afs-00.txt /tmp/afs-02.txt | sed 's/^/  /' | grep . || echo "  (없음)"; \
+	echo; \
+	echo "== 02만 하는 것 =="; \
+	comm -13 /tmp/afs-00.txt /tmp/afs-02.txt | sed 's/^/  /' | grep . || echo "  (없음)"; \
+	rm -f /tmp/afs-00.txt /tmp/afs-02.txt
 
 tidy: ## go mod tidy
 	go mod tidy

@@ -8,14 +8,25 @@ description: Scaffold or finish a chapter in this repo so it satisfies the three
 A chapter is a `main` package at `NN-name/` plus two Markdown files.
 It is **done** only when all three parts exist. Code alone is not done.
 
+## Before starting: check the boundary
+
+`../agent-identity-lab` already covers the OIDC branch in depth (hand-rolled IdP with RS256/JWKS,
+Authorization Code + PKCE, refresh, Token Exchange with nested `act`, step-up consent, confused
+deputy, six attack scripts). **If the chapter you are about to write is covered there, stop and
+link to the phase instead.** This repo takes what OIDC does not cover: sessions, logout, passkeys,
+request signing, SAML.
+
 ## The contract
 
-1. **Working minimal code.** Standard library plus crypto primitives. No OIDC/OAuth/JOSE library
-   outside chapter 00. Shared helpers live in `internal/`, never copy-pasted between chapters.
+1. **Working minimal code.** Standard library plus crypto primitives. No auth library outside
+   chapter 00. Shared helpers live in `internal/`, never copy-pasted between chapters.
 2. **`ANSWERS.md`.** Every question from the chapter README answered in the reader's own words,
    citing the trace step or code line that supports it. Spec quotes are not answers.
 3. **One attack reproduction.** Remove exactly one check from our own code, show what breaks,
    put it back. Inert, local, against our own IdP only.
+4. **A row in `notes/comparison.md`.** This is the repo's deliverable. Fill only cells the chapter
+   actually demonstrated; leave the rest blank rather than guessing. Every chapter README must
+   also answer: what did the previous approach fail at, and what did this one give up?
 
 ## Files to create
 
