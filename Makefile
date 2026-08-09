@@ -5,7 +5,7 @@ CLIENT_AUTH ?= client_secret_basic
 KC_ADMIN ?= admin
 KC_ADMIN_PW ?= admin
 
-.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-tour run-00 run-02 diff-traces tidy check
+.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-tour run-00 run-02 run-03 attack-fixation diff-traces tidy check
 
 help: ## 사용 가능한 타깃
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -54,6 +54,12 @@ discovery: ## 디스커버리 문서 출력
 
 run-tour: ## 00-reference-tour: 완성품(IdP)의 능력을 지도로 (top-down 진입점)
 	go run ./00-reference-tour -issuer "$(ISSUER)"
+
+run-03: ## 03-session-cookie 실행 (IdP 불필요). 사이트 A 5557 / B 5558
+	go run ./03-session-cookie $(SESSION_FLAGS)
+
+attack-fixation: ## 03의 session fixation 공격 재현 (앱이 떠 있어야 함)
+	@bash 03-session-cookie/attack-fixation.sh
 
 run-00: ## 00-first-login-trace 실행
 	go run ./00-first-login-trace -issuer "$(ISSUER)"

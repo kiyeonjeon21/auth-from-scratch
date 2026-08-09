@@ -46,7 +46,7 @@ type annotation struct {
 var annotations = []annotation{
 	// --- 신뢰의 뿌리: 이 문서 자체와 서명 키 ---
 	{"issuer", "이 IdP의 정체. 받은 토큰의 iss와 대조하는 기준", "뿌리", "00·02에서 확인"},
-	{"jwks_uri", "서명 검증용 공개키 목록. 표 1 '신뢰의 뿌리'의 실물", "뿌리", "03에서 뜯음 (kid 선택)"},
+	{"jwks_uri", "서명 검증용 공개키 목록. 표 1 '신뢰의 뿌리'의 실물", "뿌리", "JWKS 챕터 (kid 선택)"},
 
 	// --- 표 1: 로그인 방식 (어떤 흐름으로 누구인지 증명하나) ---
 	{"authorization_endpoint", "브라우저를 보내는 곳. Authorization Code 흐름의 시작", "표1 OIDC", "완료 (00·02)"},
@@ -54,19 +54,19 @@ var annotations = []annotation{
 	{"userinfo_endpoint", "액세스 토큰으로 사용자 정보를 받는 곳", "표1 OIDC", "완료 (00)"},
 	{"code_challenge_methods_supported", "PKCE 방식. S256이 있어야 안전", "표1 OIDC", "완료 (02에서 직접 계산)"},
 	{"grant_types_supported", "토큰을 받는 방법들. code / refresh / client_credentials / token-exchange ...", "표1·표4", "code=완료, token-exchange=lab"},
-	{"acr_values_supported", "인증 강도 요청. 재인증·step-up의 재료", "AAL 노트", "05·MFA에서"},
+	{"acr_values_supported", "인증 강도 요청. 재인증·step-up의 재료", "AAL 노트", "로그아웃·MFA 챕터"},
 
 	// --- 표 2: 토큰·요청 보호 (클라이언트가 자신을 증명하는 방법) ---
-	{"token_endpoint_auth_methods_supported", "클라이언트 인증 방식. secret / private_key_jwt / mTLS", "표2", "secret=완료(02), private_key_jwt=01 후, mTLS=미착수"},
+	{"token_endpoint_auth_methods_supported", "클라이언트 인증 방식. secret / private_key_jwt / mTLS", "표2", "secret=완료(02), private_key_jwt=JWT 서명 후, mTLS=미착수"},
 	{"dpop_signing_alg_values_supported", "DPoP 지원. 토큰을 클라이언트 키에 묶는다", "표2 DPoP", "미착수 (서버는 준비됨)"},
-	{"introspection_endpoint", "불투명 토큰을 IdP에 물어 검증. 로컬 검증의 반대편", "표2·표1", "03에서 로컬 검증과 대조"},
-	{"revocation_endpoint", "토큰을 즉시 무효화. bearer의 '취소 어려움'을 부분적으로 푼다", "표1 취소", "04에서"},
+	{"introspection_endpoint", "불투명 토큰을 IdP에 물어 검증. 로컬 검증의 반대편", "표2·표1", "JWKS 챕터에서 로컬 검증과 대조"},
+	{"revocation_endpoint", "토큰을 즉시 무효화. bearer의 '취소 어려움'을 부분적으로 푼다", "표1 취소", "세션·취소 챕터"},
 
 	// --- 표 3: SSO / 로그아웃 ---
-	{"end_session_endpoint", "RP-Initiated Logout. 로그아웃의 시작점", "표3·로그아웃", "05에서 뜯음"},
-	{"frontchannel_logout_supported", "iframe로 각 RP에 로그아웃 전파", "표3", "05"},
-	{"backchannel_logout_supported", "IdP가 각 RP에 logout token을 POST", "표3", "05"},
-	{"check_session_iframe", "세션이 살아있는지 브라우저에서 확인 (Session Management)", "표3 SSO", "05"},
+	{"end_session_endpoint", "RP-Initiated Logout. 로그아웃의 시작점", "표3·로그아웃", "로그아웃 챕터"},
+	{"frontchannel_logout_supported", "iframe로 각 RP에 로그아웃 전파", "표3", "로그아웃 챕터"},
+	{"backchannel_logout_supported", "IdP가 각 RP에 logout token을 POST", "표3", "로그아웃 챕터"},
+	{"check_session_iframe", "세션이 살아있는지 브라우저에서 확인 (Session Management)", "표3 SSO", "로그아웃 챕터"},
 
 	// --- 그 밖에 IdP가 할 수 있는 것 (지도의 가장자리) ---
 	{"device_authorization_endpoint", "입력장치 없는 기기용 흐름 (TV 로그인)", "가장자리", "범위 밖"},

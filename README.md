@@ -32,7 +32,7 @@ make kc-up && make run-tour
 
 | 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 피싱 저항 | 상태 |
 |---|---|---|---|---|---|
-| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | |
+| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | 완료 |
 | 세션 (JWT) | 없음 | 아는 것 | 예 | 없음 | lab |
 | Kerberos | KDC + 티켓 | 아는 것 | 티켓 수명 내 | 없음 | 읽기만 |
 | OIDC | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 완료 |
@@ -126,6 +126,7 @@ auth-from-scratch/
 ├── 00-reference-tour/       top-down 진입점. 완성품(IdP) 능력을 지도로
 ├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
 ├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
+├── 03-session-cookie/       세션+쿠키. IdP 없는 기준선 (IdP 불필요)
 ├── internal/
 │   └── wiretrace/           모든 방식을 같은 형식으로 기록하는 공용 레코더
 ├── docker/keycloak/         로컬 IdP. realm 설정은 코드로
