@@ -36,15 +36,22 @@ covers it; if it does, link to the phase instead. This repo takes the ground OID
 02-authcode-pkce/         OIDC. the same flow with no library
 internal/wiretrace/       shared HTTP recorder; the engine that makes mechanisms comparable
 docker/keycloak/          realm-as-code for the local IdP
-notes/comparison.md       the deliverable: three tables + logout/MFA notes
+notes/comparison.md       the deliverable: four tables + notes
 notes/diagrams.md         Excalidraw index
 ```
 
+"auth" here is both halves: authentication (who) and authorization (what). Tables 1-3 and the
+logout/MFA notes are authN; table 4 (RBAC/ABAC/ReBAC) is authZ. They are separate questions.
+
 Directory numbers are creation order, not reading order. The canonical index is the set of tables
-in `notes/comparison.md`: table 1 login mechanisms, table 2 token/request protection, table 3 SSO.
+in `notes/comparison.md`: (1) login mechanisms, (2) token/request protection, (3) SSO, (4) authZ
+models. Plus notes: session-layer attacks, NIST AAL, logout, MFA.
+
 A mechanism is a row scored across axis columns, not filed under a single axis - one mechanism
-(OIDC) can answer several axes at once. Keep those three categories separate; do not merge a
-protection technique (DPoP, HMAC) or an add-on (MFA, logout) into the login-mechanism table.
+(OIDC) can answer several axes at once. Keep the categories separate: do not merge a protection
+technique (DPoP, HMAC), an add-on (MFA, logout), or an authZ model into the login-mechanism table.
+Heavy-to-implement mechanisms (SAML, Kerberos, Verifiable Credentials) are read-only/conceptual
+rows, not built here.
 
 Single Go module at the repo root.
 Each chapter is a `main` package run with `go run ./NN-name`.
