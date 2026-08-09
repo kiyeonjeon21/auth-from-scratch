@@ -10,18 +10,33 @@
 
 ## 결과물은 코드가 아니라 표다
 
-[`notes/comparison.md`](notes/comparison.md)
+[`notes/comparison.md`](notes/comparison.md) — 이 저장소의 정식 목차이자 결과물이다.
+방식을 성격별로 세 표에 나눠 담는다.
 
-| 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 취소 | 신뢰의 뿌리 | 피싱 저항 |
-|---|---|---|---|---|---|---|
-| 세션 + 쿠키 | | | | | | |
-| JWT bearer | 없음 | 아는 것 | 예 | 어려움 | 발급자 서명키 | 없음 |
-| OIDC 로그인 | IdP + 클라이언트 | 아는 것 | 예 | 부분적 | IdP 서명키 | 없음 |
-| Passkey | | | | | | |
-| DPoP | | | | | | |
+**표 1. 로그인 방식** — 누구인지 증명하고 로그인 상태를 유지하는 완결된 방법
 
-챕터 하나를 끝낼 때마다 한 줄이 채워진다.
-개별 방식은 다른 데서도 배울 수 있지만 **이 표는 직접 만들어봐야 생긴다.**
+| 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 피싱 저항 | 상태 |
+|---|---|---|---|---|---|
+| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | |
+| 세션 (JWT) | 없음 | 아는 것 | 예 | 없음 | lab |
+| Kerberos | KDC + 티켓 | 아는 것 | 티켓 수명 내 | 없음 | 읽기만 |
+| OIDC | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 완료 |
+| SAML | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 읽기만 |
+| Passkey | | 가진 것 | | **있음** | |
+
+**표 2. 토큰·요청 보호** — 받은 토큰을 어떻게 지키나 (표 1과 직교)
+
+| 기법 | 무엇에 묶이나 | 탈취 재사용 | 상태 |
+|---|---|---|---|
+| Bearer | 안 묶임 | 그대로 됨 | 완료 |
+| HMAC 서명 | 비밀 + 요청 | 안 됨 | |
+| DPoP | 클라이언트 키 | 안 됨 | |
+| mTLS | 클라이언트 인증서 | 안 됨 | |
+
+**표 3. SSO** — 한 번 로그인을 여러 곳으로. 방식이 아니라 성질이라 따로 본다.
+
+전체 열과 SSO 표, 로그아웃·MFA 절은 [`comparison.md`](notes/comparison.md)에 있다.
+빈 칸을 추측으로 채우지 않는다. **이 표는 직접 만들어봐야 생긴다.**
 
 ---
 
@@ -44,38 +59,15 @@ SAML로도, OIDC로도, Kerberos로도, 그냥 공유 쿠키로도 된다.
 
 ## 네 가지 질문
 
-방식을 나열하지 않고 질문으로 묶는다. 그래야 비교가 된다.
+표의 열들은 결국 네 가지를 묻는다. 방식을 나열하는 대신 이 질문으로 비교한다.
 
-### A. 로그인 상태를 어디에 두나
+1. **로그인 상태를 어디에 두나** — 서버가 기억하나, 아무도 기억 안 하나(토큰). 표 1의 `상태 위치`
+2. **무엇으로 사람을 증명하나** — 아는 것 / 받는 것 / 가진 것. 표 1의 `증명 대상`, 그리고 MFA
+3. **요청을 어떻게 보호하나** — 토큰이 무엇에도 안 묶이나, 키에 묶이나. 표 2
+4. **남에게 어떻게 맡기나** — 위임. OIDC / SAML, 그리고 [agent-identity-lab](../agent-identity-lab)
 
-| | 방식 | 상태 |
-|---|---|---|
-| **A1** | 세션 + 쿠키 — 서버가 기억한다 | |
-| **A2** | 서명된 토큰 (JWT) — 아무도 기억하지 않는다 | → [agent-identity-lab](../agent-identity-lab) phase 2 |
-| **A3** | 로그아웃 — 기억을 지우는 문제 | |
-
-### B. 무엇으로 사람을 증명하나
-
-| | 방식 | 상태 |
-|---|---|---|
-| **B1** | 비밀번호 — 아는 것 | |
-| **B2** | TOTP / 매직링크 — 받는 것 | |
-| **B3** | Passkey / WebAuthn — 가진 것, 기기가 서명 | |
-
-### C. 요청 자체를 어떻게 보호하나
-
-| | 방식 | 상태 |
-|---|---|---|
-| **C1** | Bearer — 가지면 끝 | → 00·02에서 확인 |
-| **C2** | HMAC 요청 서명 — AWS SigV4 방식 | |
-| **C3** | DPoP / mTLS — 토큰을 키에 묶기 | |
-
-### D. 남에게 어떻게 맡기나
-
-| | 방식 | 상태 |
-|---|---|---|
-| **D1** | OAuth 2.0 / OIDC | **완료** — [00](00-first-login-trace), [02](02-authcode-pkce) |
-| **D2** | SAML — 구현하지 않고 읽기만 | |
+한 방식이 네 질문에 동시에 답하기도 한다 (OIDC는 넷 다 답한다).
+그래서 방식을 한 축에 배치하지 않고, 표에서 방식을 행으로 두고 축마다 채점한다.
 
 ---
 
@@ -104,8 +96,8 @@ OIDC/OBO 한 줄기로 깊게 판다.
 
 ```
 auth-from-scratch/
-├── 00-first-login-trace/    D1. 라이브러리로 로그인 1회 + 와이어 캡처
-├── 02-authcode-pkce/        D1. 같은 것을 라이브러리 없이
+├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
+├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
 ├── internal/
 │   └── wiretrace/           모든 방식을 같은 형식으로 기록하는 공용 레코더
 ├── docker/keycloak/         로컬 IdP. realm 설정은 코드로
@@ -116,7 +108,7 @@ auth-from-scratch/
 └── Makefile
 ```
 
-번호는 만든 순서다. 읽는 순서가 아니다. 읽는 순서는 위의 A~D다.
+번호는 만든 순서다. 읽는 순서가 아니다. 정식 목차는 [`comparison.md`](notes/comparison.md)의 표들이다.
 
 Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
 공용 코드는 `internal/`에 두고 챕터 사이에 복사하지 않는다.
@@ -177,17 +169,18 @@ realm 설정은 코드이고, 파일을 고쳤으면 `make kc-up` 이 아니라 
 
 | 스펙 | 내용 | 관련 |
 |---|---|---|
-| RFC 6265 | HTTP 쿠키 | A1 |
-| RFC 7519 | JWT | A2 |
-| RFC 6749 / 6750 | OAuth 2.0 코어, Bearer 사용법 | C1, D1 |
-| OIDC Core 1.0 | 인증 레이어 | D1 |
-| RFC 7636 | PKCE | D1 |
+| RFC 6265 | HTTP 쿠키 | 세션 |
+| RFC 7519 | JWT | 세션(JWT) |
+| RFC 4120 | Kerberos | Kerberos |
+| RFC 6749 / 6750 | OAuth 2.0 코어, Bearer 사용법 | OIDC, Bearer |
+| OIDC Core 1.0 | 인증 레이어 | OIDC |
+| RFC 7636 | PKCE | OIDC |
 | **RFC 9700** | OAuth 2.0 Security BCP | 전체 |
-| RFC 6238 | TOTP | B2 |
-| WebAuthn L3 / CTAP2 | Passkey | B3 |
-| RFC 9421 | HTTP Message Signatures | C2 |
-| RFC 9449 | DPoP | C3 |
-| OIDC RP-Initiated / Back-Channel Logout | 로그아웃 | A3 |
+| RFC 6238 | TOTP | MFA |
+| WebAuthn L3 / CTAP2 | Passkey | Passkey |
+| RFC 9421 | HTTP Message Signatures | HMAC 서명 |
+| RFC 9449 | DPoP | DPoP |
+| OIDC RP-Initiated / Back-Channel Logout, SAML SLO | 로그아웃 | SSO |
 
 **RFC 9700은 필독.**
 앞의 것들을 읽고 나서 보면 "왜 이렇게 설계했는지"가 역으로 이해된다.
@@ -200,9 +193,9 @@ realm 설정은 코드이고, 파일을 고쳤으면 `make kc-up` 이 아니라 
 |---|---|---|
 | `ory/fosite` | Go | 스펙을 거의 1:1로 옮겨놓음. RFC와 나란히 읽기 최적 |
 | `dexidp/dex` | Go | 작고 완결된 OIDC provider |
-| `go-webauthn/webauthn` | Go | B3의 정답지 |
-| `oauth2-proxy/oauth2-proxy` | Go | 세션·토큰을 다루는 실전 패턴. A1, A3 |
-| `crewjam/saml` | Go | D2 읽기용 |
+| `go-webauthn/webauthn` | Go | Passkey의 정답지 |
+| `oauth2-proxy/oauth2-proxy` | Go | 세션·토큰을 다루는 실전 패턴. 세션·로그아웃 |
+| `crewjam/saml` | Go | SAML 읽기용 |
 | `panva/jose` | JS | JWS/JWE/JWK 스펙 충실도 최고 |
 
 ---

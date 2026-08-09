@@ -32,16 +32,19 @@ covers it; if it does, link to the phase instead. This repo takes the ground OID
 ## Layout
 
 ```
-00-first-login-trace/     D1. library-based login + wire capture
-02-authcode-pkce/         D1. the same flow with no library
+00-first-login-trace/     OIDC. library-based login + wire capture
+02-authcode-pkce/         OIDC. the same flow with no library
 internal/wiretrace/       shared HTTP recorder; the engine that makes mechanisms comparable
 docker/keycloak/          realm-as-code for the local IdP
-notes/comparison.md       the deliverable
+notes/comparison.md       the deliverable: three tables + logout/MFA notes
 notes/diagrams.md         Excalidraw index
 ```
 
-Directory numbers are creation order, not reading order. Reading order is the A-D axes in the
-root README.
+Directory numbers are creation order, not reading order. The canonical index is the set of tables
+in `notes/comparison.md`: table 1 login mechanisms, table 2 token/request protection, table 3 SSO.
+A mechanism is a row scored across axis columns, not filed under a single axis - one mechanism
+(OIDC) can answer several axes at once. Keep those three categories separate; do not merge a
+protection technique (DPoP, HMAC) or an add-on (MFA, logout) into the login-mechanism table.
 
 Single Go module at the repo root.
 Each chapter is a `main` package run with `go run ./NN-name`.
