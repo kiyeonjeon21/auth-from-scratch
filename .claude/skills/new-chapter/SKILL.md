@@ -1,12 +1,12 @@
 ---
 name: new-chapter
-description: Scaffold or finish a chapter in this repo so it satisfies the three-part completion contract - working code, ANSWERS.md, and one attack reproduction. Use when starting chapter NN, or when checking whether a chapter is actually done.
+description: Scaffold or finish a chapter in this repo. A chapter is done when it has working code that demonstrates the mechanism and a filled row in notes/comparison.md; attack repro and reflection prose are recommended, not required. Use when starting chapter NN or checking whether one is done.
 ---
 
 # New chapter
 
-A chapter is a `main` package at `NN-name/` plus two Markdown files.
-It is **done** only when all three parts exist. Code alone is not done.
+A chapter is a `main` package at `NN-name/` plus a `README.md`.
+It is **done** when the two required parts below exist. The rest is recommended.
 
 ## Before starting: check the boundary
 
@@ -16,24 +16,26 @@ deputy, six attack scripts). **If the chapter you are about to write is covered 
 link to the phase instead.** This repo takes what OIDC does not cover: sessions, logout, passkeys,
 request signing, SAML.
 
-## The contract
+## Required
 
 1. **Working minimal code.** Standard library plus crypto primitives. No auth library outside
    chapter 00. Shared helpers live in `internal/`, never copy-pasted between chapters.
-2. **`ANSWERS.md`.** Every question from the chapter README answered in the reader's own words,
-   citing the trace step or code line that supports it. Spec quotes are not answers.
-3. **One attack reproduction.** Remove exactly one check from our own code, show what breaks,
-   put it back. Inert, local, against our own IdP only.
-4. **A row in `notes/comparison.md`.** This is the repo's deliverable. Fill only cells the chapter
-   actually demonstrated; leave the rest blank rather than guessing. Every chapter README must
-   also answer: what did the previous approach fail at, and what did this one give up?
+2. **A row in `notes/comparison.md`.** This is the repo's deliverable. Fill only cells the chapter
+   actually demonstrated; leave the rest blank rather than guessing.
+
+## Recommended (deepen understanding, skip when they teach nothing)
+
+- **One attack reproduction.** Remove exactly one check from our own code, show what breaks,
+  put it back. Inert, local, against our own IdP only.
+- **A README paragraph** on what the previous approach failed at and what this one gave up.
+- A `생각해볼 질문` section in the README — reflection prompts, not homework. There is **no
+  answers file**; the answers live in the code and the trace. Do not create an ANSWERS.md.
 
 ## Files to create
 
 ```
 NN-name/
-├── README.md      goal, run instructions, checklist, questions, traps
-├── ANSWERS.md     the questions again, each with a "> (미작성)" placeholder
+├── README.md      goal, run instructions, checklist, reflection questions, traps
 └── main.go        or several files if it genuinely needs them
 ```
 
@@ -44,12 +46,13 @@ Code comments are English.
 
 Mirror `00-first-login-trace/README.md`. Sections, in order:
 
-- Title and one-paragraph statement of what this chapter takes apart.
-- `## 실행` - exact commands, starting from `make kc-up`.
+- Title and one-paragraph statement of what this chapter takes apart, ideally naming what the
+  previous approach failed at.
+- `## 실행` - exact commands, starting from `make kc-up` when the IdP is needed.
 - `## 체크리스트` - the checkbox list, copied from the chapter's entry in the root README.
-- `## 공격 재현` - which single check gets removed and what is expected to break.
-- `## 답할 수 있어야 하는 질문` - copied from the root README, plus anything the
-  implementation surfaced.
+- `## 생각해볼 질문` - reflection prompts. Add a line noting the answers are in the code and
+  trace, not a separate file.
+- `## 공격 재현` - (recommended) which single check gets removed and what is expected to break.
 - `## 함정` - what actually went wrong while building it. Written after, not before.
 
 ## Wiring
@@ -68,7 +71,7 @@ Mirror `00-first-login-trace/README.md`. Sections, in order:
 Before calling a chapter done:
 
 - `make check` passes.
-- The flow was run end to end in a browser, not just unit tested.
-- `ANSWERS.md` has no `(미작성)` left.
-- The attack repro was actually executed and its observed output is written down.
+- The flow was run end to end, not just unit tested.
+- The `notes/comparison.md` row is filled from observed behaviour, with unproven cells left blank.
+- If an attack repro was written, it was actually executed and its output is recorded.
 - `trace.md` is not staged for commit.

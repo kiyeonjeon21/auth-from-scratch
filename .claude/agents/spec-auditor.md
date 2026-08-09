@@ -1,6 +1,6 @@
 ---
 name: spec-auditor
-description: Audit a hand-written auth implementation in this repo against the RFC or OIDC spec it claims to follow, and report every deviation. Use after finishing a chapter's code, before writing its ANSWERS.md. Give it the chapter directory and the spec.
+description: Audit a hand-written auth implementation in this repo against the RFC or OIDC spec it claims to follow, and report every deviation. Use after finishing a chapter's code, before filling its comparison-table row. Give it the chapter directory and the spec.
 tools: Read, Grep, Glob, Bash, WebFetch
 model: opus
 ---

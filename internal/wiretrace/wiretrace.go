@@ -255,8 +255,8 @@ func (r *Recorder) WriteMarkdown(path, title string) error {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", title)
-	b.WriteString("이 파일은 `00-first-login-trace`가 자동 생성한다. 직접 고치지 말고,\n")
-	b.WriteString("답을 적을 때는 같은 디렉토리의 `ANSWERS.md`에 적는다.\n\n")
+	b.WriteString("이 파일은 챕터 코드가 자동 생성한다. 직접 고치지 않는다.\n")
+	b.WriteString("막히는 값은 챕터 README의 `생각해볼 질문`에서 짚는다. 답은 이 트레이스와 코드에 있다.\n\n")
 	b.WriteString("`**TODO**`로 표시된 값은 용어집에 없는 것이다. 그게 바로 파고들 지점이다.\n\n")
 
 	if len(findings) > 0 {

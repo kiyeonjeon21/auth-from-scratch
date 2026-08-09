@@ -540,7 +540,7 @@ var resultPage = template.Must(template.New("result").Funcs(template.FuncMap{
 <ol>
   <li><code>{{.Out}}</code> 를 연다. 맨 위 "먼저 볼 것"에 위 내용이 그대로 있고, 그 아래가 왕복 전체다.</li>
   <li>표에서 <code>**TODO**</code> 로 남은 값을 찾는다. 용어집에 없는 것이라 파고들 지점이다.</li>
-  <li>답을 <code>00-first-login-trace/ANSWERS.md</code> 에 자기 말로 적는다.</li>
+  <li>README의 <code>생각해볼 질문</code> 에 스스로 답해본다. 답은 이 트레이스와 코드에 있다.</li>
 </ol>
 
 <details>

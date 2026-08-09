@@ -1,7 +1,9 @@
 # auth-from-scratch
 
-A study repo that builds authentication mechanisms by hand and **compares them side by side**.
-Not one protocol in depth: sessions, passkeys, request signing, logout, SAML, OIDC.
+A study repo about the **fundamentals** of authentication: the building blocks themselves —
+sessions, tokens, passwords, passkeys, request signing, logout — built by hand and **compared
+side by side**, so it is clear why each one exists and what it gave up. Breadth, not one
+protocol in depth.
 
 **The deliverable is `notes/comparison.md`, not the code.** Each chapter fills one row.
 Individual mechanisms can be learned anywhere; the table only exists if you build it.
@@ -97,13 +99,18 @@ Nothing in this repo targets a system we do not run.
 
 ## Chapter completion contract
 
-A chapter is done when all four exist:
+Two things are required:
 
-1. Working minimal code.
-2. `ANSWERS.md` filled in, in the reader's own words, citing which trace step supports each answer.
-3. One attack reproduction: remove a single check, show the break, put it back.
-4. **A row added to `notes/comparison.md`.** Filled from what the chapter actually demonstrated,
+1. Working minimal code that demonstrates the mechanism.
+2. **A row added to `notes/comparison.md`.** Filled from what the chapter actually demonstrated,
    never guessed. An empty cell is better than an assumed one.
+
+Recommended, not required (they deepen understanding, skip when they teach nothing):
+
+- One attack reproduction: remove a single check, show the break, put it back.
+- A paragraph in the README on what the previous approach failed at and what this one gave up.
+- Each README keeps a `생각해볼 질문` (reflection prompts) section. There is no separate answers
+  file — the answers live in the code and the trace. Do not scaffold an ANSWERS.md.
 
 Use the `new-chapter` skill to scaffold this.
 Use the `keycloak-lab` skill for IdP setup and troubleshooting.
