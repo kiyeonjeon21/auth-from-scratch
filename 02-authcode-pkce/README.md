@@ -29,13 +29,15 @@ make run-02 CLIENT_AUTH=client_secret_post    # 시크릿이 어디로 옮겨가
 
 ## 무엇을 손으로 짰나
 
-파일이 셋이고 각각 한 가지만 한다.
 
-| 파일 | 하는 일 | 00에서는 누가 했나 |
+| 어디 | 하는 일 | 00에서는 누가 했나 |
 |---|---|---|
-| `oidc.go` | 디스커버리 파싱, PKCE 계산, 인가 URL 조립, 토큰 교환 | `go-oidc` + `x/oauth2` |
-| `idtoken.go` | JWT 분해, 클레임 검증 | `oidc.IDTokenVerifier` |
-| `main.go` | 흐름 제어, `state`/`nonce` 대조 | 00에서도 앱이 직접 했다 |
+| [`internal/oidcclient`](../internal/oidcclient) | 디스커버리 파싱, PKCE 계산, 인가 URL 조립, 토큰 교환, JWT 분해·클레임 검증 | `go-oidc` + `x/oauth2` |
+| `main.go` | 흐름 제어, `state`/`nonce` 대조, 검증 목록 표시 | 00에서도 앱이 직접 했다 |
+
+> 원래 이 챕터의 `oidc.go` / `idtoken.go` 였다. 04(로그아웃)가 같은 로그인이 필요해지자
+> `internal/oidcclient` 로 옮겼다 — 챕터 간 복사 금지가 이 저장소 규칙이라서다.
+> 라이브러리를 쓴 게 아니라 **여기서 손으로 쓴 코드가 공용 자리로 간 것**이다.
 
 ### 결과 화면이 검증 목록을 보여준다
 
@@ -53,7 +55,7 @@ make run-02 CLIENT_AUTH=client_secret_post    # 시크릿이 어디로 옮겨가
 - [x] 토큰 엔드포인트로 code 교환
 - [x] 클라이언트 인증 방식 비교: `client_secret_basic` vs `client_secret_post`
 - [x] 00의 트레이스와 내 트레이스를 diff
-- [ ] `private_key_jwt` — **01 이후로 미룸.** JWT에 직접 서명하는 일이라 01의 내용이다
+- [ ] `private_key_jwt` — **미룸.** JWT에 직접 서명하는 일이라 JWT 챕터의 내용이다
 
 ### diff 결과
 
@@ -83,7 +85,7 @@ JWKS를 안 가져왔다는 건 서명을 안 봤다는 뜻이고, 서명을 안
 
 ### 일부러 안 한 것
 
-**서명 검증.** JWKS를 가져와 `kid`로 키를 고르는 건 03이다.
+**서명 검증.** JWKS를 가져와 `kid`로 키를 고르는 건 JWKS 챕터다.
 지금 이 코드는 ID 토큰의 **글자만 읽고** `iss`/`aud`/`exp`/`nonce`를 대조한다.
 그 글자를 누가 썼는지는 확인하지 않는다.
 
@@ -104,7 +106,7 @@ JWKS를 안 가져왔다는 건 서명을 안 봤다는 뜻이고, 서명을 안
 
 ## 생각해볼 질문
 
-답은 트레이스와 코드(`oidc.go`, `idtoken.go`)에 있다. 별도 답안 파일은 없다.
+답은 트레이스와 코드(`internal/oidcclient`, `main.go`)에 있다. 별도 답안 파일은 없다.
 
 - `state`와 `nonce`는 각각 무엇을 막나? 왜 하나로 합칠 수 없나?
 - PKCE는 원래 모바일 앱을 위한 것이었는데 왜 지금은 웹 앱에도 필수인가?

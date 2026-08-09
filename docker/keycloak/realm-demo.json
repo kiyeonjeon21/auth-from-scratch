@@ -34,6 +34,44 @@
       }
     },
     {
+      "clientId": "demo-rp-a",
+      "name": "04 logout - RP A",
+      "description": "로그아웃 챕터의 첫 번째 RP. back-channel logout 수신 URL이 등록돼 있다.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "demo-rp-a-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5560/callback"],
+      "webOrigins": ["http://localhost:5560"],
+      "frontchannelLogout": false,
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5560/*",
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.url": "http://host.docker.internal:5560/backchannel-logout",
+        "backchannel.logout.session.required": "true"
+      }
+    },
+    {
+      "clientId": "demo-rp-b",
+      "name": "04 logout - RP B",
+      "description": "두 번째 RP. A에서 로그아웃하면 여기로도 통지가 와야 한다.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "demo-rp-b-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5561/callback"],
+      "webOrigins": ["http://localhost:5561"],
+      "frontchannelLogout": false,
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5561/*",
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.url": "http://host.docker.internal:5561/backchannel-logout",
+        "backchannel.logout.session.required": "true"
+      }
+    },
+    {
       "clientId": "demo-api",
       "name": "03 jwks-verification (resource server)",
       "description": "Resource server. Exists so tokens have somewhere to be an audience for.",

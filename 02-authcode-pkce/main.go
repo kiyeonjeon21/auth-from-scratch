@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kiyeonjeon/auth-from-scratch/internal/oidcclient"
 	"github.com/kiyeonjeon/auth-from-scratch/internal/wiretrace"
 )
 
@@ -56,15 +57,15 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	auth := clientAuthMethod(*authMethod)
-	if auth != authBasic && auth != authPost {
-		log.Fatalf("-client-auth 는 %s 또는 %s", authBasic, authPost)
+	auth := oidcclient.ClientAuthMethod(*authMethod)
+	if auth != oidcclient.AuthBasic && auth != oidcclient.AuthPost {
+		log.Fatalf("-client-auth 는 %s 또는 %s", oidcclient.AuthBasic, oidcclient.AuthPost)
 	}
 
 	rec := wiretrace.New()
 	hc := rec.Client()
 
-	d, err := fetchDiscovery(context.Background(), hc, *issuer)
+	d, err := oidcclient.FetchDiscovery(context.Background(), hc, *issuer)
 	if err != nil {
 		log.Fatalf("디스커버리 실패: %v\n\nKeycloak이 떠 있는지 확인: make kc-up", err)
 	}
@@ -91,7 +92,7 @@ func main() {
 }
 
 // start builds the authorization request by hand and redirects the browser.
-func start(rec *wiretrace.Recorder, d *discovery, redirectURI string, cur *login) http.HandlerFunc {
+func start(rec *wiretrace.Recorder, d *oidcclient.Discovery, redirectURI string, cur *login) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -100,14 +101,17 @@ func start(rec *wiretrace.Recorder, d *discovery, redirectURI string, cur *login
 		rec.Front("브라우저 → 앱: 로그인 시작", r.Method, absURL(r))
 
 		cur.mu.Lock()
-		cur.state = randomURLSafe(32)
-		cur.nonce = randomURLSafe(32)
-		cur.verifier = newVerifier()
-		cur.challenge = challengeS256(cur.verifier)
+		cur.state = oidcclient.RandomURLSafe(32)
+		cur.nonce = oidcclient.RandomURLSafe(32)
+		cur.verifier = oidcclient.NewVerifier()
+		cur.challenge = oidcclient.ChallengeS256(cur.verifier)
 		state, nonce, challenge := cur.state, cur.nonce, cur.challenge
 		cur.mu.Unlock()
 
-		u, err := authorizeURL(d, *clientID, redirectURI, scope, state, nonce, challenge)
+		u, err := oidcclient.AuthorizeURL(d, oidcclient.AuthorizeParams{
+			ClientID: *clientID, RedirectURI: redirectURI, Scope: scope,
+			State: state, Nonce: nonce, Challenge: challenge,
+		})
 		if err != nil {
 			httpError(w, "인가 URL 조립 실패", err)
 			return
@@ -128,8 +132,8 @@ func start(rec *wiretrace.Recorder, d *discovery, redirectURI string, cur *login
 
 // callback validates the response and completes the exchange by hand.
 func callback(
-	rec *wiretrace.Recorder, hc *http.Client, d *discovery,
-	redirectURI string, auth clientAuthMethod, cur *login,
+	rec *wiretrace.Recorder, hc *http.Client, d *oidcclient.Discovery,
+	redirectURI string, auth oidcclient.ClientAuthMethod, cur *login,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rec.Front("브라우저 → 앱: 인가 응답 콜백", r.Method, absURL(r))
@@ -153,13 +157,13 @@ func callback(
 		// RFC 9207. Keycloak sends `iss` on the callback; if it is there it
 		// must match, which is what closes the mix-up attack when a client
 		// talks to more than one IdP.
-		issCheck := check{Name: "iss (콜백 파라미터)", Detail: "IdP가 안 보냈다. RFC 9207 미지원", Deferred: true}
+		issCheck := oidcclient.Check{Name: "iss (콜백 파라미터)", Detail: "IdP가 안 보냈다. RFC 9207 미지원", Deferred: true}
 		if got := q.Get("iss"); got != "" {
 			if got != d.Issuer {
 				httpError(w, "콜백 iss 불일치", fmt.Errorf("%q 가 아니라 %q 에서 왔다", d.Issuer, got))
 				return
 			}
-			issCheck = check{Name: "iss (콜백 파라미터)", Detail: "응답이 온 IdP가 맞다 (RFC 9207)", Passed: true}
+			issCheck = oidcclient.Check{Name: "iss (콜백 파라미터)", Detail: "응답이 온 IdP가 맞다 (RFC 9207)", Passed: true}
 		}
 
 		code := q.Get("code")
@@ -168,17 +172,19 @@ func callback(
 			return
 		}
 
-		tok, err := exchangeCode(r.Context(), hc, d,
-			*clientID, *clientSecret, redirectURI, code, verifier, auth)
+		tok, err := oidcclient.ExchangeCode(r.Context(), hc, d, oidcclient.ExchangeParams{
+			ClientID: *clientID, ClientSecret: *clientSecret, RedirectURI: redirectURI,
+			Code: code, Verifier: verifier, Auth: auth,
+		})
 		if err != nil {
 			httpError(w, "토큰 교환 실패", err)
 			return
 		}
 
-		header, claims, checks, err := validateIDToken(
+		header, claims, checks, err := oidcclient.ValidateIDToken(
 			tok.IDToken, d.Issuer, *clientID, nonce, clockLeeway, time.Now())
 		// Prepend the checks that happened before we ever opened the token.
-		checks = append([]check{
+		checks = append([]oidcclient.Check{
 			{Name: "state", Detail: "내 세션에 저장해둔 값과 일치", Passed: true},
 			issCheck,
 		}, checks...)
@@ -194,9 +200,9 @@ func callback(
 		// The access token gets the same treatment so 00 and 02 can be compared
 		// block for block. It is not ours to validate - we are not its audience -
 		// but reading it is how the missing `aud` from chapter 00 stays visible.
-		if _, payload, _, err := splitJWT(tok.AccessToken); err == nil {
+		if _, payload, _, err := oidcclient.SplitJWT(tok.AccessToken); err == nil {
 			var m map[string]any
-			if decodeSegment(payload, &m) == nil {
+			if oidcclient.DecodeSegment(payload, &m) == nil {
 				rec.Claims("액세스 토큰 클레임 (우리 것이 아니다. 읽기만)", mapToValues(m))
 			}
 		}
@@ -214,8 +220,8 @@ func callback(
 
 // recordFindings writes what this run showed, computed from the run itself.
 func recordFindings(
-	rec *wiretrace.Recorder, d *discovery, auth clientAuthMethod,
-	tok *tokenResponse, h *joseHeader, c *idClaims, checks []check,
+	rec *wiretrace.Recorder, d *oidcclient.Discovery, auth oidcclient.ClientAuthMethod,
+	tok *oidcclient.TokenResponse, h *oidcclient.JOSEHeader, c *oidcclient.IDClaims, checks []oidcclient.Check,
 ) {
 	deferred := 0
 	for _, ch := range checks {
@@ -237,7 +243,7 @@ func recordFindings(
 	}
 
 	where := "Authorization 헤더"
-	if auth == authPost {
+	if auth == oidcclient.AuthPost {
 		where = "요청 본문 (form 필드)"
 	}
 	rec.Find(
@@ -303,7 +309,7 @@ func isAddrInUse(err error) bool {
 	return errors.Is(err, syscall.EADDRINUSE)
 }
 
-func renderChecks(w http.ResponseWriter, checks []check, c *idClaims, tok *tokenResponse, failure error) {
+func renderChecks(w http.ResponseWriter, checks []oidcclient.Check, c *oidcclient.IDClaims, tok *oidcclient.TokenResponse, failure error) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	status := "로그인 성공"
 	if failure != nil {

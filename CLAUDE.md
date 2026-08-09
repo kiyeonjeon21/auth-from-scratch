@@ -36,6 +36,8 @@ covers it; if it does, link to the phase instead. This repo takes the ground OID
 00-first-login-trace/     OIDC. library-based login + wire capture
 02-authcode-pkce/         OIDC. the same flow with no library
 03-session-cookie/        server-side sessions. the baseline; needs no IdP
+04-logout/                logout: local / RP-initiated / back-channel, two RPs
+internal/oidcclient/      the OIDC client chapter 02 hand-rolled; reused by 04
 internal/wiretrace/       shared HTTP recorder; the engine that makes mechanisms comparable
 docker/keycloak/          realm-as-code for the local IdP
 notes/comparison.md       the deliverable: four tables + notes

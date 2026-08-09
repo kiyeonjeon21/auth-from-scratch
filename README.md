@@ -127,6 +127,8 @@ auth-from-scratch/
 ├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
 ├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
 ├── 03-session-cookie/       세션+쿠키. IdP 없는 기준선 (IdP 불필요)
+├── 04-logout/               로그아웃. 로컬 / RP-Initiated / back-channel
+├── internal/oidcclient/     02가 손으로 짠 OIDC 클라이언트 (04도 재사용)
 ├── internal/
 │   └── wiretrace/           모든 방식을 같은 형식으로 기록하는 공용 레코더
 ├── docker/keycloak/         로컬 IdP. realm 설정은 코드로
