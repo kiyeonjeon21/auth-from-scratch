@@ -9,6 +9,20 @@ auth는 둘이다 — **인증(authN, 누구인가)** 과 **인가(authZ, 무엇
 
 ---
 
+## 시작: 완성품을 먼저 본다 (top-down)
+
+밑바닥부터 쌓지 않는다. **완성된 실물 하나를 통째로 보고, 거기서 조각을 역으로 뜯는다.**
+그 완성품은 이미 여기서 돈다 — Keycloak, 실제 프로덕션 IdP다.
+
+```bash
+make kc-up && make run-tour
+```
+
+[`00-reference-tour`](00-reference-tour)가 그 IdP의 능력을 한 장의 지도([`capability-map.md`](00-reference-tour/capability-map.md))로 뽑는다.
+아래 표의 거의 모든 행이 그 완성품 안에 이미 기능으로 있다. 챕터는 그걸 하나씩 뜯는 작업이다.
+
+---
+
 ## 결과물은 코드가 아니라 표다
 
 [`notes/comparison.md`](notes/comparison.md) — 이 저장소의 정식 목차이자 결과물이다.
@@ -109,6 +123,7 @@ OIDC/OBO 한 줄기로 깊게 판다.
 
 ```
 auth-from-scratch/
+├── 00-reference-tour/       top-down 진입점. 완성품(IdP) 능력을 지도로
 ├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
 ├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
 ├── internal/

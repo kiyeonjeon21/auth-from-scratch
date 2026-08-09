@@ -32,6 +32,7 @@ covers it; if it does, link to the phase instead. This repo takes the ground OID
 ## Layout
 
 ```
+00-reference-tour/        top-down entry: maps the running IdP's advertised capabilities
 00-first-login-trace/     OIDC. library-based login + wire capture
 02-authcode-pkce/         OIDC. the same flow with no library
 internal/wiretrace/       shared HTTP recorder; the engine that makes mechanisms comparable

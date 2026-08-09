@@ -5,7 +5,7 @@ CLIENT_AUTH ?= client_secret_basic
 KC_ADMIN ?= admin
 KC_ADMIN_PW ?= admin
 
-.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-00 run-02 diff-traces tidy check
+.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-tour run-00 run-02 diff-traces tidy check
 
 help: ## 사용 가능한 타깃
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -51,6 +51,9 @@ kc-export: ## 콘솔에서 만진 realm을 파일로 되받기 (STDOUT)
 
 discovery: ## 디스커버리 문서 출력
 	@curl -fsS "$(ISSUER)/.well-known/openid-configuration" | jq
+
+run-tour: ## 00-reference-tour: 완성품(IdP)의 능력을 지도로 (top-down 진입점)
+	go run ./00-reference-tour -issuer "$(ISSUER)"
 
 run-00: ## 00-first-login-trace 실행
 	go run ./00-first-login-trace -issuer "$(ISSUER)"

@@ -47,6 +47,13 @@
     }
   ],
 
+  "roles": {
+    "realm": [
+      { "name": "hr-viewer", "description": "RBAC 데모용. 표 4의 역할 기반 인가가 토큰에 어떻게 나타나는지 보이려고 있다" },
+      { "name": "hr-admin", "description": "RBAC 데모용. alice에게는 주지 않는다 (권한 차이 관찰용)" }
+    ]
+  },
+
   "users": [
     {
       "username": "alice",
@@ -61,7 +68,8 @@
           "value": "alice",
           "temporary": false
         }
-      ]
+      ],
+      "realmRoles": ["hr-viewer"]
     }
   ]
 }
