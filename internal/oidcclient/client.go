@@ -19,6 +19,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/kiyeonjeon/auth-from-scratch/internal/jwks"
 )
 
 // ---------------------------------------------------------------- discovery
@@ -380,12 +382,31 @@ type Check struct {
 	Deferred bool // not implemented yet, deferred to a later chapter
 }
 
-// ValidateIDToken parses an ID token and checks every claim we can check
-// without a signature. It returns the checks performed even on failure, so the
-// caller can show which one broke.
-func ValidateIDToken(raw, issuer, clientID, wantNonce string, leeway time.Duration, now time.Time) (
+// SignatureVerifier checks a compact JWS against the issuer's public keys.
+// internal/jwks implements it. Nil means "not wired yet", which the check list
+// reports honestly rather than silently skipping.
+type SignatureVerifier interface {
+	Verify(ctx context.Context, token string) (*jwks.Header, error)
+}
+
+// Validator holds what every ID token from one issuer is checked against.
+type Validator struct {
+	Issuer   string
+	ClientID string
+	Leeway   time.Duration
+	Keys     SignatureVerifier
+}
+
+// ValidateIDToken parses an ID token and checks it. It returns the checks
+// performed even on failure, so the caller can show which one broke.
+//
+// The signature is checked FIRST. Every claim below it is only worth reading
+// because the signature says the IdP wrote them; validating claims on an
+// unverified token is theatre.
+func (v Validator) ValidateIDToken(ctx context.Context, raw, wantNonce string, now time.Time) (
 	*JOSEHeader, *IDClaims, []Check, error,
 ) {
+	issuer, clientID, leeway := v.Issuer, v.ClientID, v.Leeway
 	headerSeg, payloadSeg, _, err := SplitJWT(raw)
 	if err != nil {
 		return nil, nil, nil, err
@@ -408,13 +429,20 @@ func ValidateIDToken(raw, issuer, clientID, wantNonce string, leeway time.Durati
 		checks = append(checks, Check{Name: name, Detail: detail, Passed: true})
 	}
 
-	// The signature is what makes every other claim worth reading. Recorded
-	// first so it is impossible to look at this list and think we are done.
-	checks = append(checks, Check{
-		Name:     "서명",
-		Detail:   fmt.Sprintf("아직 검증하지 않는다 (alg=%s, kid=%s). JWKS 챕터에서 붙인다", h.Alg, h.Kid),
-		Deferred: true,
-	})
+	// The signature is what makes every other claim worth reading, so it runs
+	// before any of them and a failure stops everything.
+	if v.Keys == nil {
+		checks = append(checks, Check{
+			Name:     "서명",
+			Detail:   fmt.Sprintf("검증기가 연결되지 않았다 (alg=%s, kid=%s)", h.Alg, h.Kid),
+			Deferred: true,
+		})
+	} else if _, err := v.Keys.Verify(ctx, raw); err != nil {
+		cs, ferr := fail("서명", err.Error())
+		return &h, &c, cs, ferr
+	} else {
+		pass("서명", fmt.Sprintf("JWKS의 공개키로 검증됨 (alg=%s, kid=%s)", h.Alg, h.Kid))
+	}
 
 	if c.Iss != issuer {
 		cs, err := fail("iss", fmt.Sprintf("%q 를 기대했는데 %q", issuer, c.Iss))

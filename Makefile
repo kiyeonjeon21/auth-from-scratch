@@ -5,7 +5,7 @@ CLIENT_AUTH ?= client_secret_basic
 KC_ADMIN ?= admin
 KC_ADMIN_PW ?= admin
 
-.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-tour run-00 run-02 run-03 run-04 attack-fixation diff-traces tidy check
+.PHONY: help kc-up kc-allow-http kc-down kc-reset kc-logs kc-export discovery run-tour run-00 run-02 run-03 run-04 run-05 run-06 run-07 attack-fixation diff-traces tidy check
 
 help: ## 사용 가능한 타깃
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -63,6 +63,15 @@ attack-fixation: ## 03의 session fixation 공격 재현 (앱이 떠 있어야 �
 
 run-04: ## 04-logout 실행. RP A 5560 / RP B 5561
 	go run ./04-logout -issuer "$(ISSUER)"
+
+run-05: ## 05-jwks-verify 실행 (로그인 불필요). JWKS 읽기 + 위조 6종 시험
+	go run ./05-jwks-verify -issuer "$(ISSUER)"
+
+run-06: ## 06-passkey 실행 (로그인·하드웨어 불필요). WebAuthn + 공격 6종
+	go run ./06-passkey
+
+run-07: ## 07-authz-models 실행 (IdP 불필요). RBAC/ABAC/ReBAC 비교
+	go run ./07-authz-models
 
 run-00: ## 00-first-login-trace 실행
 	go run ./00-first-login-trace -issuer "$(ISSUER)"

@@ -1,121 +1,49 @@
 # auth-from-scratch
 
-auth의 **근본 building block** 을 라이브러리 없이 하나씩 만들어보고 나란히 비교하는 학습 저장소.
+OIDC / OAuth 2.0 / SAML / Token Exchange를 **라이브러리 없이 직접 구현하며** 이해하기 위한 학습 저장소.
 
-auth는 둘이다 — **인증(authN, 누구인가)** 과 **인가(authZ, 무엇을 해도 되나).**
-세션·토큰·passkey·요청 서명·로그아웃(인증)과 RBAC·ABAC·ReBAC(인가) 같은 조각들이 무엇이고,
-**각 조각이 앞의 무엇이 부족해서 나왔으며 무엇을 포기했는지** 를 손으로 확인하는 것이 목표다.
-프로덕션 코드가 아니라 이해가 목적이다.
+목표는 동작하는 프로덕션 코드를 만드는 게 아니라, 라이브러리가 대신 해주던 일을 손으로 한 번씩 해보고 **왜 그렇게 설계됐는지** 를 이해하는 것.
 
 ---
 
-## 시작: 완성품을 먼저 본다 (top-down)
+## 핵심 관점
 
-밑바닥부터 쌓지 않는다. **완성된 실물 하나를 통째로 보고, 거기서 조각을 역으로 뜯는다.**
-그 완성품은 이미 여기서 돈다 — Keycloak, 실제 프로덕션 IdP다.
+프로토콜이 달라 보여도 하는 일은 같다. 결국 **서명된 종이** 를 검증하는 문제다.
 
-```bash
-make kc-up && make run-tour
+| 검증 항목 | 클레임 | 질문 |
+|---|---|---|
+| 발행자 | `iss` | 누가 발행했나 |
+| 대상자 | `aud` | 누구한테 주는 건가 |
+| 유효기간 | `exp` / `nbf` | 아직 살아있나 |
+| 무결성 | 서명 | 위조가 아닌가 |
+
+SAML이냐 OIDC냐는 이걸 **XML로 하냐 JSON으로 하냐**, 그리고 **브라우저 리다이렉트로 전달하냐 서버 간 호출로 전달하냐** 의 차이일 뿐이다.
+
+---
+
+## 프로토콜 계보
+
 ```
-
-[`00-reference-tour`](00-reference-tour)가 그 IdP의 능력을 한 장의 지도([`capability-map.md`](00-reference-tour/capability-map.md))로 뽑는다.
-아래 표의 거의 모든 행이 그 완성품 안에 이미 기능으로 있다. 챕터는 그걸 하나씩 뜯는 작업이다.
-
----
-
-## 결과물은 코드가 아니라 표다
-
-[`notes/comparison.md`](notes/comparison.md) — 이 저장소의 정식 목차이자 결과물이다.
-방식을 성격별로 세 표에 나눠 담는다.
-
-**표 1. 로그인 방식** — 누구인지 증명하고 로그인 상태를 유지하는 완결된 방법
-
-| 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 피싱 저항 | 상태 |
-|---|---|---|---|---|---|
-| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | 완료 |
-| 세션 (JWT) | 없음 | 아는 것 | 예 | 없음 | lab |
-| Kerberos | KDC + 티켓 | 아는 것 | 티켓 수명 내 | 없음 | 읽기만 |
-| OIDC | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 완료 |
-| SAML | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 읽기만 |
-| Passkey | | 가진 것 | | **있음** | |
-
-**표 2. 토큰·요청 보호** — 받은 토큰을 어떻게 지키나 (표 1과 직교)
-
-| 기법 | 무엇에 묶이나 | 탈취 재사용 | 상태 |
-|---|---|---|---|
-| Bearer | 안 묶임 | 그대로 됨 | 완료 |
-| HMAC 서명 | 비밀 + 요청 | 안 됨 | |
-| DPoP | 클라이언트 키 | 안 됨 | |
-| mTLS | 클라이언트 인증서 | 안 됨 | |
-
-**표 3. SSO** — 한 번 로그인을 여러 곳으로. 방식이 아니라 성질이라 따로 본다.
-
-**표 4. 인가 모델 (authZ)** — 누구인지 정해진 뒤 "무엇을 해도 되나"를 판단하는 규칙
-
-| 모델 | 결정 기준 | 유연성 | 잘 맞는 곳 |
-|---|---|---|---|
-| RBAC | 역할 | 낮음 | 역할 적고 고정적 |
-| ABAC | 속성·문맥 | 높음 | 시간·위치·소유가 중요 |
-| ReBAC | 관계 | 중간 | 협업·멀티테넌트 |
-
-전체 열, SSO 표, 세션 공격·NIST AAL·로그아웃·MFA 절은 [`comparison.md`](notes/comparison.md)에 있다.
-빈 칸을 추측으로 채우지 않는다. **이 표는 직접 만들어봐야 생긴다.**
-
----
-
-## 용어부터
-
-자주 섞여 쓰이는데 층위가 다르다.
-
-| | 무엇인가 |
-|---|---|
-| **인증 (authN)** | 누구인가. 표 1~3 |
-| **인가 (authZ)** | 무엇을 해도 되나. 표 4. 인증 다음 단계이지 같은 것이 아니다 |
-| **JWT** | 데이터 **형식**. 서명된 JSON. 그 자체로는 인증이 아니다 |
-| **OAuth 2.0** | **위임** 프레임워크. "이 앱이 내 대신 접근해도 된다" |
-| **OIDC** | OAuth 위에 얹은 **인증** 레이어. "이 사용자가 누구다" |
-| **SSO** | **성질**. 한 번 로그인으로 여러 곳. 구현 방식이 아니다 |
-
-가장 흔한 혼동은 **OAuth를 인증으로 쓰는 것**이다. OAuth는 인가(위임) 프레임워크지 인증이 아니다.
-"이 앱이 접근해도 된다"와 "이 사용자가 누구다"는 다른 질문이고, 그 틈을 메우려고 OIDC가 나왔다.
-SSO도 오해하기 쉽다 — SAML·OIDC·Kerberos·공유 쿠키 어느 것으로도 되는 성질이지 방식이 아니다.
-
----
-
-## 다섯 가지 질문
-
-표의 열들은 결국 이 질문들을 묻는다. 방식을 나열하는 대신 질문으로 비교한다.
-앞 넷은 인증, 마지막 하나는 인가다.
-
-1. **로그인 상태를 어디에 두나** — 서버가 기억하나, 아무도 기억 안 하나(토큰). 표 1의 `상태 위치`
-2. **무엇으로 사람을 증명하나** — 아는 것 / 받는 것 / 가진 것. 표 1의 `증명 대상`, 그리고 MFA
-3. **요청을 어떻게 보호하나** — 토큰이 무엇에도 안 묶이나, 키에 묶이나. 표 2
-4. **남에게 어떻게 맡기나** — 위임. OIDC / SAML, 그리고 [agent-identity-lab](../agent-identity-lab)
-5. **무엇을 해도 되나** — 인가. 역할이냐 속성이냐 관계냐. 표 4
-
-한 방식이 여러 질문에 동시에 답하기도 한다 (OIDC는 1~4를 답한다).
-그래서 방식을 한 축에 배치하지 않고, 표에서 방식을 행으로 두고 축마다 채점한다.
-
----
-
-## agent-identity-lab 과의 분담
-
-[`../agent-identity-lab`](../agent-identity-lab) 은 **agent 서비스에 인증을 붙이는** 저장소다.
-OIDC 줄기를 이미 깊게 팠다. 여기서 다시 하지 않는다.
-
-| 주제 | 어디서 |
-|---|---|
-| 자작 IdP, RS256/JWKS, alg 혼동 공격 | lab phase 2 |
-| Authorization Code + PKCE | lab phase 3 (여기 02와 중복. 여기 것은 비교 기준으로 남김) |
-| 리프레시, 수명 불일치, durable 세션 | lab phase 5 |
-| Token Exchange, OBO, 중첩 `act` | lab phase 4·10·14 |
-| step-up consent, confused deputy | lab phase 6·8 |
-
-**저쪽은 응용, 여기는 근본이다.**
-저쪽은 "agent에게 어떻게 신원을 주고 사용자 권한을 안전하게 위임하나"라는 한 문제를
-OIDC/OBO 한 줄기로 깊게 판다.
-여기는 "인증의 building block이 애초에 무엇이고 왜 각각이 필요한가"를 넓게 본다.
-세션, Passkey, 요청 서명, 로그아웃, SAML — OIDC가 덮지 않는 조각들이다.
+        인증(누구인가)   인가(무엇을 허용)   위임(대신 행동)
+                    │                │
+        ┌───────────┴──┐         ┌───┴──────────┐
+        │  SAML 2.0    │         │  OAuth 2.0   │
+        │  XML, 엔터프라이즈 │         │  인가 위임 프레임워크 │
+        └───────┬──────┘         └───┬──────────┘
+                │                    │
+                │                ┌───┴──────────┐
+                │                │  OIDC        │  ID 토큰으로 인증 추가
+                │                └───┬──────────┘
+                │                    │
+                │                ┌───┴──────────┐
+                │                │ Token Exchange│  RFC 8693 → OBO
+                │                └───┬──────────┘
+                │                    │
+        ┌───────┴────────────────────┴──────────┐
+        │  공통 기반                              │
+        │  서명 검증 · 메타데이터 디스커버리 · 채널 분리  │
+        └───────────────────────────────────────┘
+```
 
 ---
 
@@ -123,98 +51,130 @@ OIDC/OBO 한 줄기로 깊게 판다.
 
 ```
 auth-from-scratch/
-├── 00-reference-tour/       top-down 진입점. 완성품(IdP) 능력을 지도로
-├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
-├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
-├── 03-session-cookie/       세션+쿠키. IdP 없는 기준선 (IdP 불필요)
-├── 04-logout/               로그아웃. 로컬 / RP-Initiated / back-channel
-├── internal/oidcclient/     02가 손으로 짠 OIDC 클라이언트 (04도 재사용)
-├── internal/
-│   └── wiretrace/           모든 방식을 같은 형식으로 기록하는 공용 레코더
-├── docker/keycloak/         로컬 IdP. realm 설정은 코드로
-├── notes/
-│   ├── comparison.md        결과물. 방식 비교표
-│   └── diagrams.md          그림 목록
-├── docker-compose.yml
-└── Makefile
+├── 01-jwt-by-hand/          # JWT를 라이브러리 없이 만들고 검증
+├── 02-authcode-pkce/        # Authorization Code + PKCE 클라이언트 직접 구현
+├── 03-jwks-verification/    # 리소스 서버 쪽 토큰 검증
+├── 04-token-exchange-obo/   # 위임 체인, delegation vs impersonation
+├── 05-saml-reading-notes/   # SAML은 구현하지 않고 읽기만
+├── docker/
+│   └── keycloak/            # 로컬 IdP
+└── notes/                   # 스펙 읽으며 남긴 메모
 ```
 
-번호는 만든 순서다. 읽는 순서가 아니다. 정식 목차는 [`comparison.md`](notes/comparison.md)의 표들이다.
-
-Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
-공용 코드는 `internal/`에 두고 챕터 사이에 복사하지 않는다.
-
-### `internal/wiretrace` 가 이 저장소의 엔진이다
-
-모든 HTTP 왕복을 프론트채널/백채널로 나눠 기록하고, 파라미터마다 "왜 있나" 주석을 붙여
-마크다운으로 떨군다. **같은 렌즈로 다른 방식을 찍으면 차이가 눈에 보인다.**
-
-세션 로그인 트레이스와 OIDC 트레이스와 Passkey 트레이스를 같은 형식으로 놓고 비교하는 것이
-표를 채우는 방법이다.
+각 디렉토리는 자체 `README.md`와 **직접 답할 수 있어야 하는 질문 목록** 을 가진다. 코드가 돌아가는 것보다 그 질문에 답할 수 있는 게 목표.
 
 ---
 
-## 그림
+## 학습 순서
 
-용어를 모르는 상태에서 시작할 수 있게 세 장을 순서대로 둔다.
-전체 목록은 [`notes/diagrams.md`](notes/diagrams.md).
+### 01. JWT를 손으로
 
-1. [가장 쉬운 그림 - 로그인이란](https://app.excalidraw.com/s/AU3bkHPBsIE/4o7ZsmOJtq2) — 프로토콜 용어 없음
-2. [로그인 한 번에 무슨 일이 일어나나](https://app.excalidraw.com/s/AU3bkHPBsIE/VeJ6rXc0py) — 1번과 같은 레이아웃에 진짜 이름
-3. [PKCE - 가루와 원본](https://app.excalidraw.com/s/AU3bkHPBsIE/74Xaul0gvdJ)
+base64url 인코딩, HMAC/RSA 서명, 검증을 60줄 안에 직접 구현한다.
 
----
+- [ ] `header.payload.signature` 구조를 직접 조립하고 분해
+- [ ] HS256 서명 및 검증
+- [ ] RS256 서명 및 검증 (키페어 직접 생성)
+- [ ] `alg: none` 공격 재현
+- [ ] 알고리즘 혼동 공격 재현 — HS256으로 서명한 토큰을 RS256 공개키로 검증 시도
 
-## 각 챕터의 완료 조건
+**답할 수 있어야 하는 질문**
+- 왜 검증할 때 토큰에 적힌 `alg`를 믿으면 안 되나?
+- base64url은 왜 일반 base64가 아닌가?
+- JWT는 암호화된 것인가? (아니라면 민감 정보를 넣으면 안 되는 이유는?)
 
-**필수는 둘뿐이다.**
+### 02. Authorization Code + PKCE
 
-1. 동작하는 최소 코드 — 그 방식을 손으로 시연
-2. **`notes/comparison.md` 에 한 줄 추가** — 시연한 것에서 채운다, 추측 금지
+Keycloak을 IdP로 띄우고, **OIDC 클라이언트 라이브러리 없이** raw HTTP로 붙는다. 라이브러리를 쓰면 이 단계의 핵심이 통째로 숨겨진다.
 
-권장 (하면 이해가 깊어지는 것, 안 해도 됨)
+- [ ] `/.well-known/openid-configuration` 직접 파싱
+- [ ] `state` 생성·저장·검증 (CSRF 방어)
+- [ ] `nonce` 생성 후 ID 토큰의 `nonce`와 대조 (리플레이 방어)
+- [ ] `code_verifier` / `code_challenge` (S256) 직접 계산
+- [ ] 토큰 엔드포인트로 code 교환
+- [ ] 받은 ID 토큰 파싱
 
-- 공격 재현 — 검증을 한 줄 빼면 어떻게 뚫리는지 실제로 실행
-- README에 "이 방식은 앞의 무엇이 부족해서 나왔나" 한 문단
-- 각 README의 `생각해볼 질문` 에 스스로 답해보기 (별도 답안 파일은 없다. 답은 코드와 트레이스에 있다)
+**답할 수 있어야 하는 질문**
+- `state`와 `nonce`는 각각 무엇을 막나? 왜 하나로 합칠 수 없나?
+- PKCE는 원래 모바일 앱을 위한 것이었는데 왜 지금은 웹 앱에도 필수인가?
+- Implicit flow는 왜 폐기됐나?
+- `redirect_uri`를 부분 일치로 비교하면 어떤 공격이 가능한가?
+
+### 03. JWKS와 리소스 서버 검증
+
+이번엔 토큰을 **받는** 쪽을 만든다.
+
+- [ ] JWKS 엔드포인트에서 공개키 목록 가져오기
+- [ ] `kid`로 올바른 키 선택
+- [ ] JWKS 캐싱 + 키 롤오버 대응 (모르는 `kid`가 오면?)
+- [ ] `iss` / `aud` / `exp` 검증
+- [ ] Token introspection (RFC 7662)도 구현해서 로컬 검증과 비교
+
+**답할 수 있어야 하는 질문**
+- 로컬 검증 vs introspection: 각각 언제 쓰나? 트레이드오프는?
+- 토큰을 즉시 무효화해야 한다면 로컬 검증만으로 가능한가?
+- `aud` 검증을 빠뜨리면 어떤 공격이 가능한가? (audience confusion)
+
+### 04. Token Exchange / OBO
+
+서비스 A가 유저 토큰을 받아 서비스 B를 호출하는 시나리오를 만든다.
+
+- [ ] RFC 8693 형태의 교환 요청 구성
+- [ ] `act` 클레임으로 위임 체인 표현
+- [ ] delegation 시나리오 — "유저 대신 A가 요청 중"
+- [ ] impersonation 시나리오 — "A가 유저인 척"
+- [ ] Azure OBO 흐름과 대조 (같은 개념의 MS 방언)
+
+**답할 수 있어야 하는 질문**
+- delegation과 impersonation의 감사 로그는 어떻게 달라지나?
+- 위임 체인이 3단계가 되면 `act`는 어떻게 중첩되나?
+- 왜 원본 액세스 토큰을 그대로 B에게 전달하면 안 되나?
+
+### 05. SAML — 읽기만
+
+**직접 구현하지 않는다.** XML canonicalization은 지옥이고, XML Signature Wrapping 취약점이 지금도 계속 나온다.
+
+- [ ] 실제 `SAMLResponse`를 base64 디코딩해서 Assertion 구조 뜯어보기
+- [ ] `Conditions`, `AudienceRestriction`, `SubjectConfirmation` 해석
+- [ ] `crewjam/saml`의 검증 코드 읽기
+- [ ] XML Signature Wrapping 공격 원리 이해
+
+**답할 수 있어야 하는 질문**
+- SAML Assertion의 어느 부분이 서명되나? 전체인가 일부인가?
+- 서명 검증에 성공했는데도 뚫릴 수 있는 이유는?
+- SAML과 OIDC를 각각 언제 선택하나?
 
 ---
 
 ## 실행
 
 ```bash
-make kc-up      # 로컬 IdP (D 계열 챕터에서 필요)
-make run-00     # -> http://localhost:5556
-make run-02     # 00과 같은 포트. 동시에 못 띄운다
-make help       # 전체 타깃
+# 로컬 IdP 띄우기
+docker run -p 8080:8080 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  quay.io/keycloak/keycloak:latest start-dev
+
+# 디스커버리 문서 확인
+curl http://localhost:8080/realms/master/.well-known/openid-configuration | jq
 ```
 
-로그인 계정 `alice` / `alice`, 관리 콘솔 http://localhost:8080 (`admin` / `admin`).
-
-주의할 점은 [`docker/keycloak/README.md`](docker/keycloak/README.md) 에 모아뒀다.
-realm 설정은 코드이고, 파일을 고쳤으면 `make kc-up` 이 아니라 **`make kc-reset`** 이다.
+관리 콘솔은 http://localhost:8080 — realm과 client 설정은 `docker/keycloak/README.md` 참고.
 
 ---
 
 ## 스펙 읽는 순서
 
-| 스펙 | 내용 | 관련 |
+| 순서 | 스펙 | 내용 |
 |---|---|---|
-| RFC 6265 | HTTP 쿠키 | 세션 |
-| RFC 7519 | JWT | 세션(JWT) |
-| RFC 4120 | Kerberos | Kerberos |
-| RFC 6749 / 6750 | OAuth 2.0 코어, Bearer 사용법 | OIDC, Bearer |
-| OIDC Core 1.0 | 인증 레이어 | OIDC |
-| RFC 7636 | PKCE | OIDC |
-| **RFC 9700** | OAuth 2.0 Security BCP | 전체 |
-| RFC 6238 | TOTP | MFA |
-| WebAuthn L3 / CTAP2 | Passkey | Passkey |
-| RFC 9421 | HTTP Message Signatures | HMAC 서명 |
-| RFC 9449 | DPoP | DPoP |
-| OIDC RP-Initiated / Back-Channel Logout, SAML SLO | 로그아웃 | SSO |
+| 1 | RFC 6749 | OAuth 2.0 코어 |
+| 2 | RFC 6750 | Bearer Token 사용법 |
+| 3 | RFC 7519 | JWT |
+| 4 | OIDC Core 1.0 | 인증 레이어 |
+| 5 | RFC 7636 | PKCE |
+| 6 | **RFC 9700** | OAuth 2.0 Security BCP |
+| 7 | RFC 8693 | Token Exchange |
 
-**RFC 9700은 필독.**
-앞의 것들을 읽고 나서 보면 "왜 이렇게 설계했는지"가 역으로 이해된다.
+**RFC 9700은 필독.** 앞의 스펙들을 읽고 나서 보면 "왜 이렇게 설계했는지"가 역으로 이해된다. mix-up 공격, redirect_uri 정확 일치, implicit flow 폐기 이유가 전부 여기 정리돼 있다.
 
 ---
 
@@ -222,18 +182,28 @@ realm 설정은 코드이고, 파일을 고쳤으면 `make kc-up` 이 아니라 
 
 | 저장소 | 언어 | 왜 |
 |---|---|---|
-| `ory/fosite` | Go | 스펙을 거의 1:1로 옮겨놓음. RFC와 나란히 읽기 최적 |
-| `dexidp/dex` | Go | 작고 완결된 OIDC provider |
-| `go-webauthn/webauthn` | Go | Passkey의 정답지 |
-| `oauth2-proxy/oauth2-proxy` | Go | 세션·토큰을 다루는 실전 패턴. 세션·로그아웃 |
-| `crewjam/saml` | Go | SAML 읽기용 |
-| `panva/jose` | JS | JWS/JWE/JWK 스펙 충실도 최고 |
+| `ory/fosite` | Go | 스펙을 거의 1:1로 코드에 옮겨놓음. RFC와 나란히 놓고 읽기 최적 |
+| `dexidp/dex` | Go | 작고 완결된 OIDC provider. 전체를 다 읽을 수 있는 크기 |
+| `panva/jose` | JS | JWS/JWE/JWK 스펙 충실도 최고. 서명 검증 레퍼런스 |
+| `panva/openid-client` | JS | OIDC 클라이언트가 실제로 뭘 검증해야 하는지의 정답지 |
+| `oauth2-proxy/oauth2-proxy` | Go | 리버스 프록시에서 세션·토큰을 다루는 실전 패턴 |
+| `crewjam/saml` | Go | SAML 검증 로직 읽기용 |
+| `keycloak/keycloak` | Java | 무겁지만 IdP 전체 구조. 필요한 부분만 발췌 |
+
+---
+
+## 함정 노트
+
+구현하다 걸린 것들을 여기 쌓는다.
+
+- **Audience confusion** — B 서비스용 토큰을 C 서비스가 받아주면 뚫린다. 멀티테넌트에서 특히 위험
+- **Mix-up attack** — 여러 IdP를 지원할 때 응답이 어느 IdP에서 왔는지 확인하지 않으면
+- **Sender-constrained token** — DPoP(RFC 9449), mTLS. 토큰 탈취 자체를 무력화하는 방향
+- **Refresh token rotation** — 재사용이 감지되면 전체 체인을 무효화
+- **로그아웃** — front-channel / back-channel logout. SSO의 진짜 어려운 부분은 로그인이 아니라 로그아웃이다
 
 ---
 
 ## 주의
 
-이 저장소의 코드는 **학습 목적** 이다.
-프로덕션에서는 검증된 라이브러리를 써야 한다.
-직접 구현한 인증 코드는 거의 항상 취약하며, 이 저장소의 목적은 그 라이브러리들이
-무엇을 대신 해주고 있는지 이해하는 것이다.
+이 저장소의 코드는 **학습 목적** 이다. 프로덕션에서는 검증된 라이브러리를 써야 한다. 직접 구현한 인증 코드는 거의 항상 취약하며, 이 저장소의 목적은 그 라이브러리들이 무엇을 대신 해주고 있는지 이해하는 것이다.

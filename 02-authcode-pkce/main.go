@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kiyeonjeon/auth-from-scratch/internal/jwks"
 	"github.com/kiyeonjeon/auth-from-scratch/internal/oidcclient"
 	"github.com/kiyeonjeon/auth-from-scratch/internal/wiretrace"
 )
@@ -70,12 +71,18 @@ func main() {
 		log.Fatalf("디스커버리 실패: %v\n\nKeycloak이 떠 있는지 확인: make kc-up", err)
 	}
 
+	// The debt chapter 02 opened is paid here: a real JWKS-backed verifier.
+	validator := oidcclient.Validator{
+		Issuer: d.Issuer, ClientID: *clientID, Leeway: clockLeeway,
+		Keys: jwks.New(d.JWKSURI, hc),
+	}
+
 	redirectURI := "http://" + *listen + "/callback"
 	var cur login
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", start(rec, d, redirectURI, &cur))
-	mux.HandleFunc("/callback", callback(rec, hc, d, redirectURI, auth, &cur))
+	mux.HandleFunc("/callback", callback(rec, hc, d, validator, redirectURI, auth, &cur))
 
 	log.Printf("IdP:        %s", d.Issuer)
 	log.Printf("클라이언트:   %s (%s)", *clientID, redirectURI)
@@ -133,7 +140,8 @@ func start(rec *wiretrace.Recorder, d *oidcclient.Discovery, redirectURI string,
 // callback validates the response and completes the exchange by hand.
 func callback(
 	rec *wiretrace.Recorder, hc *http.Client, d *oidcclient.Discovery,
-	redirectURI string, auth oidcclient.ClientAuthMethod, cur *login,
+	validator oidcclient.Validator, redirectURI string,
+	auth oidcclient.ClientAuthMethod, cur *login,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rec.Front("브라우저 → 앱: 인가 응답 콜백", r.Method, absURL(r))
@@ -181,8 +189,8 @@ func callback(
 			return
 		}
 
-		header, claims, checks, err := oidcclient.ValidateIDToken(
-			tok.IDToken, d.Issuer, *clientID, nonce, clockLeeway, time.Now())
+		header, claims, checks, err := validator.ValidateIDToken(
+			r.Context(), tok.IDToken, nonce, time.Now())
 		// Prepend the checks that happened before we ever opened the token.
 		checks = append([]oidcclient.Check{
 			{Name: "state", Detail: "내 세션에 저장해둔 값과 일치", Passed: true},

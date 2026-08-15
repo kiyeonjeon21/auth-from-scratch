@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kiyeonjeon/auth-from-scratch/internal/jwks"
 	"github.com/kiyeonjeon/auth-from-scratch/internal/oidcclient"
 )
 
@@ -54,6 +55,8 @@ type rp struct {
 	peer         string
 	disc         *oidcclient.Discovery
 	hc           *http.Client
+	keys         *jwks.Cache
+	val          oidcclient.Validator
 
 	mu    sync.Mutex
 	sess  map[string]*rpSession // our session id -> session
@@ -127,9 +130,13 @@ func serve(s *http.Server) {
 }
 
 func newRP(name, id, secret, base, peer string, d *oidcclient.Discovery, hc *http.Client) *rp {
+	keys := jwks.New(d.JWKSURI, hc)
 	return &rp{
 		name: name, clientID: id, clientSecret: secret, base: base, peer: peer,
-		disc: d, hc: hc,
+		disc: d, hc: hc, keys: keys,
+		val: oidcclient.Validator{
+			Issuer: d.Issuer, ClientID: id, Leeway: clockLeeway, Keys: keys,
+		},
 		sess: map[string]*rpSession{}, bySID: map[string]string{}, pend: map[string]*pending{},
 	}
 }
@@ -192,8 +199,7 @@ func (p *rp) callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "토큰 교환 실패: "+err.Error(), 400)
 		return
 	}
-	_, claims, _, err := oidcclient.ValidateIDToken(
-		tok.IDToken, p.disc.Issuer, p.clientID, pend.nonce, clockLeeway, time.Now())
+	_, claims, _, err := p.val.ValidateIDToken(r.Context(), tok.IDToken, pend.nonce, time.Now())
 	if err != nil {
 		http.Error(w, "ID 토큰 검증 실패: "+err.Error(), 400)
 		return
@@ -279,7 +285,7 @@ func (p *rp) backchannelLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := p.validateLogoutToken(raw)
+	claims, err := p.validateLogoutToken(r.Context(), raw)
 	if err != nil {
 		p.note("back-channel 로그아웃 거부: %v", err)
 		http.Error(w, err.Error(), 400)
@@ -321,8 +327,13 @@ type logoutClaims struct {
 //     ID token from being replayed here as a logout command
 //   - it MUST NOT have a nonce, for the same reason in reverse
 //
-// The signature is still not verified - that needs JWKS, same as chapter 02.
-func (p *rp) validateLogoutToken(raw string) (*logoutClaims, error) {
+// The signature is verified first, with the same JWKS cache the ID tokens use.
+func (p *rp) validateLogoutToken(ctx context.Context, raw string) (*logoutClaims, error) {
+	// Signature first. Without it any of the checks below can be satisfied by
+	// an attacker simply writing the JSON they want.
+	if _, err := p.keys.Verify(ctx, raw); err != nil {
+		return nil, fmt.Errorf("서명 검증 실패: %w", err)
+	}
 	_, payload, _, err := oidcclient.SplitJWT(raw)
 	if err != nil {
 		return nil, err
