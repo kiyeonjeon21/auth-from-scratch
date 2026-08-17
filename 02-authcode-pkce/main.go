@@ -88,6 +88,7 @@ func main() {
 	log.Printf("클라이언트:   %s (%s)", *clientID, redirectURI)
 	log.Printf("클라이언트 인증: %s", auth)
 	log.Printf("IdP가 지원하는 클라이언트 인증: %s", strings.Join(d.TokenEndpointAuthMethods, ", "))
+	log.Printf("계정:       alice / alice")
 	log.Printf("\n브라우저에서 열기 -> http://%s\n", *listen)
 
 	srv := &http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}

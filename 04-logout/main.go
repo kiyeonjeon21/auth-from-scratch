@@ -106,6 +106,7 @@ func main() {
 	log.Printf("RP A   %s", a.base)
 	log.Printf("RP B   %s", b.base)
 	log.Printf("IdP    %s", d.Issuer)
+	log.Printf("계정   alice / alice")
 	log.Printf("\n둘 다 로그인한 뒤, A에서 각 로그아웃 버튼을 눌러보라.\n")
 
 	go serve(srvB)
