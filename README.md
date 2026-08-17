@@ -124,18 +124,18 @@ flowchart TD
     O -->|"사람이 속는다"| W["Passkey<br/><small>비밀이 안 움직인다</small>"]
     W -->|"발급자에게<br/>매번 안 묻고 싶다"| V["Verifiable Credential<br/><small>보유자 중심</small>"]
 
-    S -.->|"03 완료"| S
-    O -.->|"00·02·05 완료"| O
-    W -.->|"06 완료"| W
-
     classDef done fill:#d3f9d8,stroke:#2b8a3e
     classDef todo fill:#f1f3f5,stroke:#868e96
     class S,O,W done
     class P,J,D,V todo
 ```
 
-초록이 여기서 만든 것, 회색이 아직 안 한 것이다.
-`JWT`는 [agent-identity-lab](../agent-identity-lab)이 이미 깊게 다뤘다.
+**초록이 여기서 만든 것**이다 — 세션(03), OIDC(00·02·05), Passkey(06).
+회색은 아직 안 했거나 다른 곳에서 다룬 것이다. `JWT`는
+[agent-identity-lab](../agent-identity-lab)이 이미 깊게 팠고, `DPoP`와 `VC`가 남았다.
+
+화살표에 붙은 말이 곧 **다음 방식이 나온 이유**다. 방식 목록을 외우는 게 아니라
+이 사슬을 말할 수 있으면 지도가 생긴 것이다.
 
 ---
 
