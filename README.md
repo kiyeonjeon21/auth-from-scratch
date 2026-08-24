@@ -1,25 +1,84 @@
 # auth-from-scratch
 
-auth의 **근본 building block** 을 라이브러리 없이 하나씩 만들어보고 나란히 비교하는 학습 저장소.
+인증(authN)과 인가(authZ)의 **building block 을 라이브러리 없이 하나씩 직접 만들어보고,
+나란히 놓고 비교하는** 학습 저장소.
 
-auth는 둘이다 — **인증(authN, 누구인가)** 과 **인가(authZ, 무엇을 해도 되나).**
-세션·토큰·passkey·요청 서명·로그아웃(인증)과 RBAC·ABAC·ReBAC(인가) 같은 조각들이 무엇이고,
-**각 조각이 앞의 무엇이 부족해서 나왔으며 무엇을 포기했는지** 를 손으로 확인하는 것이 목표다.
-프로덕션 코드가 아니라 이해가 목적이다.
+세션, OIDC, JWKS 서명 검증, 로그아웃, Passkey, RBAC/ABAC/ReBAC 를
+각각 돌아가는 최소 코드로 만들었다. Go 모듈 하나, 챕터 8개, 약 4,800줄.
+**라이브러리는 챕터 00 에서 딱 한 번만 쓴다.** 나머지는 표준 라이브러리 + 크립토 프리미티브뿐이다.
+
+프로덕션 코드가 아니라 이해가 목적이다. 묻는 것은 항상 하나다 -
+**이 방식은 앞의 무엇이 부족해서 나왔고, 그 대가로 무엇을 포기했나.**
 
 ---
 
-## 시작: 완성품을 먼저 본다 (top-down)
+## 30초 만에 뭐 하는 저장소인지 보기
 
-밑바닥부터 쌓지 않는다. **완성된 실물 하나를 통째로 보고, 거기서 조각을 역으로 뜯는다.**
-그 완성품은 이미 여기서 돈다 — Keycloak, 실제 프로덕션 IdP다.
+도커도, 로그인도, 하드웨어도 필요 없는 챕터가 둘 있다.
+
+```bash
+go run ./07-authz-models   # 같은 요청 5건을 RBAC / ABAC / ReBAC 에 각각 통과시킨다
+go run ./06-passkey        # 패스키 등록·로그인, 그리고 공격 6종
+```
+
+07 의 출력 일부.
+
+```
+alice가 남의 문서를 수정
+기대: 거부   (editor 역할은 있지만 소유자가 아니다)
+  !! RBAC   허용     역할 "editor" 에 "edit" 권한이 있다
+     ABAC   거부     소유자가 아니다
+     ReBAC  거부     alice 와 salaries 사이에 "edit" 를 허용하는 관계가 없다
+
+== 모델별로 표현하지 못한 것 ==
+   RBAC   2건 못 맞춤
+   ABAC   전부 표현함
+   ReBAC  1건 못 맞춤
+```
+
+방식을 설명하는 대신 **같은 상황에 넣고 어디서 갈라지는지 보여주는 것**, 그게 매 챕터의 형식이다.
+
+---
+
+## 여기서 실제로 만든 것
+
+| 챕터 | 만든 것 | 돌리면 보는 것 | 준비물 |
+|---|---|---|---|
+| [`03-session-cookie`](03-session-cookie) | 폼 로그인, 서버 세션 map, 쿠키. 사이트 두 개 | 5557 에서 로그인하면 5558 도 로그인돼 있다 (쿠키는 포트를 구분하지 않는다). session fixation 을 실제로 뚫고 다시 막는다 | 없음 |
+| [`00-first-login-trace`](00-first-login-trace) | OIDC 로그인 1회를 **라이브러리로** + 모든 HTTP 왕복 캡처 | 주석 달린 `trace.md`. 로그아웃했는데 다시 그냥 들어가지는 현상 | 도커 |
+| [`02-authcode-pkce`](02-authcode-pkce) | 같은 로그인을 **표준 라이브러리만으로** 재구현 | `make diff-traces` 로 왕복 차이. 라이브러리가 대신 해주던 게 무엇이었나 | 도커 |
+| [`05-jwks-verify`](05-jwks-verify) | JWKS 파서, `kid` 선택, RS/PS 서명 검증기 | 위조 6종(`alg:none`, alg 혼동, 페이로드 변조, 모르는 `kid` …) 전부 거부 | 도커 |
+| [`04-logout`](04-logout) | RP 두 개 + 로컬 / RP-Initiated / back-channel 로그아웃 | A 에서 로그아웃하면 B 로 `logout_token` 이 날아가 B 도 죽는다 | 도커 |
+| [`06-passkey`](06-passkey) | WebAuthn 서버 + 인증기(휴대폰 역할) 40줄 | 공격 6종(재전송·피싱·복제·남의 키 …) 전부 거부. 개인키는 한 번도 움직이지 않는다 | 없음 |
+| [`07-authz-models`](07-authz-models) | 같은 시나리오를 RBAC / ABAC / ReBAC 세 판정기에 | RBAC 2건·ReBAC 1건을 아예 표현하지 못한다 | 없음 |
+| [`00-reference-tour`](00-reference-tour) | 실제 IdP(Keycloak) 디스커버리 문서에서 능력 지도 생성 | [`capability-map.md`](00-reference-tour/capability-map.md). "인증이 이만큼이고 나는 지금 어디쯤인가" | 도커 |
+
+디렉토리 번호는 만든 순서이고, 위 표 순서가 읽기 좋은 순서다.
+"도커"는 로컬 IdP(Keycloak)가 필요하다는 뜻이다 - `make kc-up` 한 줄.
+
+공용 코드는 챕터 사이에 복사하지 않고 [`internal/`](internal) 에 둔다.
+
+| 패키지 | 하는 일 |
+|---|---|
+| `internal/jwks` | 키 캐시, `kid` 선택, RS256/PS256 서명 검증 |
+| `internal/webauthn` | CBOR 부분집합, COSE 키 파싱, 등록·인증 검증 |
+| `internal/oidcclient` | 02 가 손으로 짠 OIDC 클라이언트 (04 도 재사용) |
+| `internal/wiretrace` | 모든 방식의 HTTP 왕복을 같은 형식으로 기록하는 레코더 |
+
+---
+
+## 왜 완성품부터 보나 (top-down)
+
+밑바닥부터 쌓으면 각 조각이 왜 필요한지 모른 채 만들게 된다.
+그래서 반대로 간다. **완성된 실물 하나를 통째로 보고, 거기서 조각을 역으로 뜯는다.**
+그 완성품은 이미 여기서 돈다 - Keycloak, 장난감이 아니라 실제 프로덕션 IdP다.
 
 ```bash
 make kc-up && make run-tour
 ```
 
-[`00-reference-tour`](00-reference-tour)가 그 IdP의 능력을 한 장의 지도([`capability-map.md`](00-reference-tour/capability-map.md))로 뽑는다.
-아래 표의 거의 모든 행이 그 완성품 안에 이미 기능으로 있다. 챕터는 그걸 하나씩 뜯는 작업이다.
+[`00-reference-tour`](00-reference-tour) 가 그 IdP 의 능력을 한 장의 지도로 뽑는다.
+아래 비교표의 거의 모든 행이 그 완성품 안에 이미 기능으로 있다. 챕터는 그걸 하나씩 뜯는 작업이다.
 
 ```mermaid
 flowchart LR
@@ -30,48 +89,6 @@ flowchart LR
     E -->|"wiretrace diff"| F["차이가 배울 것"]
     F -->|"칸을 채운다"| C
 ```
-
----
-
-## 결과물은 코드가 아니라 표다
-
-[`notes/comparison.md`](notes/comparison.md) — 이 저장소의 정식 목차이자 결과물이다.
-방식을 성격별로 세 표에 나눠 담는다.
-
-**표 1. 로그인 방식** — 누구인지 증명하고 로그인 상태를 유지하는 완결된 방법
-
-| 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 피싱 저항 | 상태 |
-|---|---|---|---|---|---|
-| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | 완료 |
-| 세션 (JWT) | 없음 | 아는 것 | 예 | 없음 | lab |
-| Kerberos | KDC + 티켓 | 아는 것 | 티켓 수명 내 | 없음 | 읽기만 |
-| OIDC | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 완료 |
-| SAML | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 읽기만 |
-| Passkey | 인증기(기기) | 가진 것 | **아니오** | **있음** | 완료 |
-
-**표 2. 토큰·요청 보호** — 받은 토큰을 어떻게 지키나 (표 1과 직교)
-
-| 기법 | 무엇에 묶이나 | 탈취 재사용 | 상태 |
-|---|---|---|---|
-| Bearer | 안 묶임 | 그대로 됨 | 완료 |
-| HMAC 서명 | 비밀 + 요청 | 안 됨 | |
-| DPoP | 클라이언트 키 | 안 됨 | |
-| mTLS | 클라이언트 인증서 | 안 됨 | |
-
-**표 3. SSO** — 한 번 로그인을 여러 곳으로. 방식이 아니라 성질이라 따로 본다.
-
-**표 4. 인가 모델 (authZ)** — 누구인지 정해진 뒤 "무엇을 해도 되나"를 판단하는 규칙
-
-| 모델 | 결정 기준 | 유연성 | 잘 맞는 곳 |
-|---|---|---|---|
-| RBAC | 역할 | 낮음 | 역할 적고 고정적 |
-| ABAC | 속성·문맥 | 높음 | 시간·위치·소유가 중요 |
-| ReBAC | 관계 | 중간 | 협업·멀티테넌트 |
-
-셋 다 완료 (07). 같은 시나리오에서 RBAC 2건·ReBAC 1건을 표현하지 못했다.
-
-전체 열, SSO 표, 세션 공격·NIST AAL·로그아웃·MFA 절은 [`comparison.md`](notes/comparison.md)에 있다.
-빈 칸을 추측으로 채우지 않는다. **이 표는 직접 만들어봐야 생긴다.**
 
 ---
 
@@ -90,7 +107,62 @@ flowchart LR
 
 가장 흔한 혼동은 **OAuth를 인증으로 쓰는 것**이다. OAuth는 인가(위임) 프레임워크지 인증이 아니다.
 "이 앱이 접근해도 된다"와 "이 사용자가 누구다"는 다른 질문이고, 그 틈을 메우려고 OIDC가 나왔다.
-SSO도 오해하기 쉽다 — SAML·OIDC·Kerberos·공유 쿠키 어느 것으로도 되는 성질이지 방식이 아니다.
+SSO도 오해하기 쉽다 - SAML·OIDC·Kerberos·공유 쿠키 어느 것으로도 되는 성질이지 방식이 아니다.
+
+---
+
+## 결과물은 코드가 아니라 표다
+
+[`notes/comparison.md`](notes/comparison.md) 이 이 저장소의 정식 목차이자 결과물이다.
+방식을 성격별로 네 표에 나눠 담는다.
+
+**표에는 여기서 만들지 않은 행도 있다.** 맨 오른쪽 `상태` 열이 그걸 구분한다 -
+`완료` 는 이 저장소에서 손으로 만든 것, `읽기만` 은 구현이 무거워 개념만 본 것,
+`lab` 은 [agent-identity-lab](../agent-identity-lab) 에서 확인한 것이다.
+방식 하나만 보면 안 보이던 것이 **열을 따라 옆으로 읽을 때** 보인다. 표가 결과물인 이유다.
+
+**표 1. 로그인 방식** - 누구인지 증명하고 로그인 상태를 유지하는 완결된 방법
+
+| 방식 | 상태 위치 | 증명 대상 | 훔치면 끝? | 피싱 저항 | 상태 |
+|---|---|---|---|---|---|
+| 세션 (서버) | 서버 | 아는 것 | 예 | 없음 | 완료 |
+| 세션 (JWT) | 없음 | 아는 것 | 예 | 없음 | lab |
+| Kerberos | KDC + 티켓 | 아는 것 | 티켓 수명 내 | 없음 | 읽기만 |
+| OIDC | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 완료 |
+| SAML | IdP + 클라이언트 | 아는 것 | 예 | 없음 | 읽기만 |
+| Passkey | 인증기(기기) | 가진 것 | **아니오** | **있음** | 완료 |
+| Verifiable Credential | 보유자 지갑 | 가진 것 | 아니오 | 있음 | 읽기만 |
+
+**표 2. 토큰·요청 보호** - 받은 토큰을 어떻게 지키나 (표 1과 직교)
+
+| 기법 | 무엇에 묶이나 | 탈취 재사용 | 상태 |
+|---|---|---|---|
+| Bearer | 안 묶임 | 그대로 됨 | 완료 |
+| HMAC 서명 | 비밀 + 요청 | 안 됨 | |
+| DPoP | 클라이언트 키 | 안 됨 | |
+| mTLS | 클라이언트 인증서 | 안 됨 | |
+
+**표 3. SSO** - 한 번 로그인을 여러 곳으로. 방식이 아니라 성질이라 따로 본다.
+
+| 방식 | SSO를 만드는 것 | 로그아웃 전파 |
+|---|---|---|
+| 공유 도메인 쿠키 | 같은 도메인의 쿠키 (포트는 구분 안 함) | 도메인 밖은 안 됨 |
+| OIDC | IdP 세션 재사용 | RP-Initiated + back-channel (04에서 확인) |
+| SAML | IdP 세션 + SP별 assertion | SLO 프로토콜 |
+| Kerberos | TGT 재사용 | 만료를 기다림 |
+
+**표 4. 인가 모델 (authZ)** - 누구인지 정해진 뒤 "무엇을 해도 되나"를 판단하는 규칙
+
+| 모델 | 결정 기준 | 유연성 | 잘 맞는 곳 |
+|---|---|---|---|
+| RBAC | 역할 | 낮음 | 역할 적고 고정적 |
+| ABAC | 속성·문맥 | 높음 | 시간·위치·소유가 중요 |
+| ReBAC | 관계 | 중간 | 협업·멀티테넌트 |
+
+셋 다 완료 (07). 같은 시나리오에서 RBAC 2건·ReBAC 1건을 표현하지 못했다.
+
+전체 열, SSO 표, 세션 공격·NIST AAL·로그아웃·MFA 절은 [`comparison.md`](notes/comparison.md)에 있다.
+빈 칸을 추측으로 채우지 않는다. **이 표는 직접 만들어봐야 생긴다.**
 
 ---
 
@@ -99,18 +171,18 @@ SSO도 오해하기 쉽다 — SAML·OIDC·Kerberos·공유 쿠키 어느 것으
 표의 열들은 결국 이 질문들을 묻는다. 방식을 나열하는 대신 질문으로 비교한다.
 앞 넷은 인증, 마지막 하나는 인가다.
 
-1. **로그인 상태를 어디에 두나** — 서버가 기억하나, 아무도 기억 안 하나(토큰). 표 1의 `상태 위치`
-2. **무엇으로 사람을 증명하나** — 아는 것 / 받는 것 / 가진 것. 표 1의 `증명 대상`, 그리고 MFA
-3. **요청을 어떻게 보호하나** — 토큰이 무엇에도 안 묶이나, 키에 묶이나. 표 2
-4. **남에게 어떻게 맡기나** — 위임. OIDC / SAML, 그리고 [agent-identity-lab](../agent-identity-lab)
-5. **무엇을 해도 되나** — 인가. 역할이냐 속성이냐 관계냐. 표 4
+1. **로그인 상태를 어디에 두나** - 서버가 기억하나, 아무도 기억 안 하나(토큰). 표 1의 `상태 위치`
+2. **무엇으로 사람을 증명하나** - 아는 것 / 받는 것 / 가진 것. 표 1의 `증명 대상`, 그리고 MFA
+3. **요청을 어떻게 보호하나** - 토큰이 무엇에도 안 묶이나, 키에 묶이나. 표 2
+4. **남에게 어떻게 맡기나** - 위임. OIDC / SAML, 그리고 [agent-identity-lab](../agent-identity-lab)
+5. **무엇을 해도 되나** - 인가. 역할이냐 속성이냐 관계냐. 표 4
 
 한 방식이 여러 질문에 동시에 답하기도 한다 (OIDC는 1~4를 답한다).
 그래서 방식을 한 축에 배치하지 않고, 표에서 방식을 행으로 두고 축마다 채점한다.
 
 ---
 
-## 실패 사슬 — 왜 방식이 이렇게 많은가
+## 실패 사슬 - 왜 방식이 이렇게 많은가
 
 인증의 역사는 기능 목록이 아니라 **"이게 깨져서 저게 나왔다"의 연속**이다.
 각 방식은 앞의 무엇이 부족해서 나왔고, 그 대가로 무엇을 포기했다.
@@ -130,7 +202,7 @@ flowchart TD
     class P,J,D,V todo
 ```
 
-**초록이 여기서 만든 것**이다 — 세션(03), OIDC(00·02·05), Passkey(06).
+**초록이 여기서 만든 것**이다 - 세션(03), OIDC(00·02·05), Passkey(06).
 회색은 아직 안 했거나 다른 곳에서 다룬 것이다. `JWT`는
 [agent-identity-lab](../agent-identity-lab)이 이미 깊게 팠고, `DPoP`와 `VC`가 남았다.
 
@@ -150,14 +222,14 @@ sequenceDiagram
     participant A as 앱
     participant I as IdP
 
-    Note over U,I: 프론트채널 — 주소창에 남는다
+    Note over U,I: 프론트채널 - 주소창에 남는다
     U->>A: 로그인 시작
     A-->>U: 302 (state · nonce · code_challenge)
     U->>I: 인가 요청
     I-->>U: 교환권(code)
     U->>A: 콜백
 
-    Note over A,I: 백채널 — 브라우저가 관여하지 않는다
+    Note over A,I: 백채널 - 브라우저가 관여하지 않는다
     A->>I: code + client_secret + code_verifier
     I-->>A: ID 토큰 + 액세스 토큰
     A->>I: JWKS 공개키
@@ -165,7 +237,7 @@ sequenceDiagram
 ```
 
 **시크릿이 나와도 되는 자리는 백채널 하나뿐이다.**
-`code_challenge`(해시)는 프론트로 가고 `code_verifier`(원본)는 백으로 간다 — 그 비대칭이 PKCE다.
+`code_challenge`(해시)는 프론트로 가고 `code_verifier`(원본)는 백으로 간다 - 그 비대칭이 PKCE다.
 
 챕터별 백채널 호출 수를 세면 방식의 성격이 드러난다.
 
@@ -194,7 +266,7 @@ OIDC 줄기를 이미 깊게 팠다. 여기서 다시 하지 않는다.
 저쪽은 "agent에게 어떻게 신원을 주고 사용자 권한을 안전하게 위임하나"라는 한 문제를
 OIDC/OBO 한 줄기로 깊게 판다.
 여기는 "인증의 building block이 애초에 무엇이고 왜 각각이 필요한가"를 넓게 본다.
-세션, Passkey, 요청 서명, 로그아웃, SAML — OIDC가 덮지 않는 조각들이다.
+세션, Passkey, 요청 서명, 로그아웃, SAML - OIDC가 덮지 않는 조각들이다.
 
 ---
 
@@ -202,20 +274,16 @@ OIDC/OBO 한 줄기로 깊게 판다.
 
 ```
 auth-from-scratch/
-├── 00-reference-tour/       top-down 진입점. 완성품(IdP) 능력을 지도로
-├── 00-first-login-trace/    OIDC. 라이브러리로 로그인 1회 + 와이어 캡처
-├── 02-authcode-pkce/        OIDC. 같은 것을 라이브러리 없이
-├── 03-session-cookie/       세션+쿠키. IdP 없는 기준선 (IdP 불필요)
-├── 04-logout/               로그아웃. 로컬 / RP-Initiated / back-channel
-├── 05-jwks-verify/          JWKS 서명 검증. 02·04의 구멍을 막음 (로그인 불필요)
-├── 06-passkey/              WebAuthn. 비밀이 움직이지 않는 첫 방식 (하드웨어 불필요)
-├── 07-authz-models/         인가. RBAC/ABAC/ReBAC 비교 (IdP 불필요)
-├── internal/oidcclient/     02가 손으로 짠 OIDC 클라이언트 (04도 재사용)
-│   ├── jwks/                키 캐시, kid 선택, RS/PS 서명 검증
-│   └── webauthn/            CBOR 부분집합, COSE 키, 등록·인증 검증
-├── internal/
-│   └── wiretrace/           모든 방식을 같은 형식으로 기록하는 공용 레코더
-├── docker/keycloak/         로컬 IdP. realm 설정은 코드로
+├── 00-reference-tour/       챕터. 각각 독립된 main 패키지, `go run ./NN-name`
+├── 00-first-login-trace/
+├── 02-authcode-pkce/
+├── 03-session-cookie/
+├── 04-logout/
+├── 05-jwks-verify/
+├── 06-passkey/
+├── 07-authz-models/
+├── internal/                챕터가 공유하는 코드 (위의 표 참조)
+├── docker/keycloak/         로컬 IdP. realm 설정은 코드다 (realm-demo.json)
 ├── notes/
 │   ├── comparison.md        결과물. 방식 비교표
 │   └── diagrams.md          그림 목록
@@ -223,10 +291,8 @@ auth-from-scratch/
 └── Makefile
 ```
 
-번호는 만든 순서다. 읽는 순서가 아니다. 정식 목차는 [`comparison.md`](notes/comparison.md)의 표들이다.
-
 Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
-공용 코드는 `internal/`에 두고 챕터 사이에 복사하지 않는다.
+공용 코드는 `internal/` 에 두고 챕터 사이에 복사하지 않는다.
 
 ### `internal/wiretrace` 가 이 저장소의 엔진이다
 
@@ -243,8 +309,8 @@ Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
 용어를 모르는 상태에서 시작할 수 있게 세 장을 순서대로 둔다.
 전체 목록은 [`notes/diagrams.md`](notes/diagrams.md).
 
-1. [가장 쉬운 그림 - 로그인이란](https://app.excalidraw.com/s/AU3bkHPBsIE/4o7ZsmOJtq2) — 프로토콜 용어 없음
-2. [로그인 한 번에 무슨 일이 일어나나](https://app.excalidraw.com/s/AU3bkHPBsIE/VeJ6rXc0py) — 1번과 같은 레이아웃에 진짜 이름
+1. [가장 쉬운 그림 - 로그인이란](https://app.excalidraw.com/s/AU3bkHPBsIE/4o7ZsmOJtq2) - 프로토콜 용어 없음
+2. [로그인 한 번에 무슨 일이 일어나나](https://app.excalidraw.com/s/AU3bkHPBsIE/VeJ6rXc0py) - 1번과 같은 레이아웃에 진짜 이름
 3. [PKCE - 가루와 원본](https://app.excalidraw.com/s/AU3bkHPBsIE/74Xaul0gvdJ)
 
 ---
@@ -253,12 +319,12 @@ Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
 
 **필수는 둘뿐이다.**
 
-1. 동작하는 최소 코드 — 그 방식을 손으로 시연
-2. **`notes/comparison.md` 에 한 줄 추가** — 시연한 것에서 채운다, 추측 금지
+1. 동작하는 최소 코드 - 그 방식을 손으로 시연
+2. **`notes/comparison.md` 에 한 줄 추가** - 시연한 것에서 채운다, 추측 금지
 
 권장 (하면 이해가 깊어지는 것, 안 해도 됨)
 
-- 공격 재현 — 검증을 한 줄 빼면 어떻게 뚫리는지 실제로 실행
+- 공격 재현 - 검증을 한 줄 빼면 어떻게 뚫리는지 실제로 실행
 - README에 "이 방식은 앞의 무엇이 부족해서 나왔나" 한 문단
 - 각 README의 `생각해볼 질문` 에 스스로 답해보기 (별도 답안 파일은 없다. 답은 코드와 트레이스에 있다)
 
@@ -266,11 +332,30 @@ Go 모듈 하나에 챕터가 `main` 패키지로 들어간다.
 
 ## 실행
 
+각 챕터가 무엇을 보여주는지는 [위의 표](#여기서-실제로-만든-것)에 있다. 여기는 명령만 모았다.
+
 ```bash
-make kc-up      # 로컬 IdP (D 계열 챕터에서 필요)
+make kc-up      # 로컬 IdP
+make run-tour   # 00-reference-tour. 완성품 능력 지도 (여기서 시작)
+make help       # 전체 타깃
+```
+
+IdP가 필요한 챕터.
+
+```bash
 make run-00     # -> http://localhost:5556
 make run-02     # 00과 같은 포트. 동시에 못 띄운다
-make help       # 전체 타깃
+make run-04     # RP A 5560 / RP B 5561. 로그아웃 전파를 보려면 둘 다 로그인
+make run-05     # 로그인은 불필요. JWKS 읽기 + 위조 6종
+```
+
+IdP 없이 도는 챕터.
+
+```bash
+make run-03           # 사이트 A 5557 / B 5558
+make attack-fixation  # 03이 떠 있는 상태에서 session fixation 재현
+make run-06           # Passkey. 하드웨어도 로그인도 불필요
+make run-07           # RBAC / ABAC / ReBAC
 ```
 
 로그인 계정 `alice` / `alice`, 관리 콘솔 http://localhost:8080 (`admin` / `admin`).

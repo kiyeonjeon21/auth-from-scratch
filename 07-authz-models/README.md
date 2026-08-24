@@ -27,18 +27,28 @@ make run-07
 
 ## 결과
 
+5건 중 갈리는 건 둘이다.
+
 ```
-alice가 남의 문서를 수정          기대: 거부
-  !! RBAC   허용   역할 "editor" 에 "edit" 권한이 있다
-     ABAC   거부   소유자가 아니다
-     ReBAC  거부   alice 와 salaries 사이에 관계가 없다
+   alice가 남의 문서를 수정
+   기대: 거부   (editor 역할은 있지만 소유자가 아니다 - 여기서 RBAC가 갈린다)
+     !! RBAC   허용     역할 "editor" 에 "edit" 권한이 있다
+        ABAC   거부     소유자가 아니다
+        ReBAC  거부     alice 와 salaries 사이에 "edit" 를 허용하는 관계가 없다
 
-alice가 기밀문서를 사무실 밖에서 읽기   기대: 거부
-  !! RBAC   허용   역할에 read 권한이 있다
-     ABAC   거부   기밀 문서는 사무실 밖에서 못 본다
-  !! ReBAC  허용   alice 는 salaries 의 viewer 다
+   alice가 기밀문서를 사무실 밖에서 읽기
+   기대: 거부   (환경 속성 - RBAC/ReBAC는 이걸 볼 수 없다)
+     !! RBAC   허용     역할 "editor" 에 "read" 권한이 있다
+        ABAC   거부     기밀 문서는 사무실 밖에서 못 본다 (환경 속성)
+     !! ReBAC  허용     alice 는 salaries 의 viewer 다
 
-표현하지 못한 것:  RBAC 2건 · ReBAC 1건 · ABAC 0건
+== 모델별로 표현하지 못한 것 ==
+   RBAC   2건 못 맞춤
+          - alice가 남의 문서를 수정
+          - alice가 기밀문서를 사무실 밖에서 읽기
+   ABAC   전부 표현함
+   ReBAC  1건 못 맞춤
+          - alice가 기밀문서를 사무실 밖에서 읽기
 ```
 
 ### RBAC가 갈리는 지점
