@@ -73,7 +73,7 @@
     },
     {
       "clientId": "demo-api",
-      "name": "03 jwks-verification (resource server)",
+      "name": "05 jwks-verify (resource server)",
       "description": "Resource server. Exists so tokens have somewhere to be an audience for.",
       "enabled": true,
       "protocol": "openid-connect",
